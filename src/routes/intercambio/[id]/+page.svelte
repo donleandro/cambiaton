@@ -4,17 +4,26 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	let seleccionDoy = $state<Set<string>>(
-		new Set(data.match.doy.slice(0, data.match.balanceado).map((it) => it.id))
+	function preselect(items: { id: string }[], limit: number): Record<string, boolean> {
+		const r: Record<string, boolean> = {};
+		for (let i = 0; i < items.length; i++) r[items[i].id] = i < limit;
+		return r;
+	}
+
+	let seleccionDoy = $state<Record<string, boolean>>(
+		preselect(data.match.doy, data.match.balanceado)
 	);
-	let seleccionRecibo = $state<Set<string>>(
-		new Set(data.match.recibo.slice(0, data.match.balanceado).map((it) => it.id))
+	let seleccionRecibo = $state<Record<string, boolean>>(
+		preselect(data.match.recibo, data.match.balanceado)
 	);
 
-	function toggle(set: Set<string>, id: string) {
-		if (set.has(id)) set.delete(id);
-		else set.add(id);
-		return new Set(set);
+	const idsDoy = $derived(Object.keys(seleccionDoy).filter((k) => seleccionDoy[k]));
+	const idsRecibo = $derived(Object.keys(seleccionRecibo).filter((k) => seleccionRecibo[k]));
+
+	function toggleAll(target: Record<string, boolean>, ids: string[], turnOn: boolean) {
+		const next = { ...target };
+		for (const id of ids) next[id] = turnOn;
+		return next;
 	}
 </script>
 
@@ -60,8 +69,8 @@
 				use:enhance
 				class="space-y-6"
 			>
-				<input type="hidden" name="dados" value={[...seleccionDoy].join(',')} />
-				<input type="hidden" name="recibidos" value={[...seleccionRecibo].join(',')} />
+				<input type="hidden" name="dados" value={idsDoy.join(',')} />
+				<input type="hidden" name="recibidos" value={idsRecibo.join(',')} />
 
 				<div class="grid gap-6 md:grid-cols-2">
 					<section>
@@ -69,36 +78,34 @@
 							<h2 class="text-base font-semibold">
 								Yo le doy
 								<span class="text-sm font-normal text-stone-500">
-									({seleccionDoy.size} de {data.totales.doy})
+									({idsDoy.length} de {data.totales.doy})
 								</span>
 							</h2>
 							<button
 								type="button"
-								onclick={() =>
-									(seleccionDoy = new Set(
-										seleccionDoy.size === data.match.doy.length
-											? []
-											: data.match.doy.map((it) => it.id)
-									))}
+								onclick={() => {
+									const ids = data.match.doy.map((it) => it.id);
+									const allOn = ids.every((id) => seleccionDoy[id]);
+									seleccionDoy = toggleAll(seleccionDoy, ids, !allOn);
+								}}
 								class="text-xs text-stone-500 hover:text-stone-900"
 							>
-								{seleccionDoy.size === data.match.doy.length ? 'Ninguno' : 'Todos'}
+								{idsDoy.length === data.match.doy.length ? 'Ninguno' : 'Todos'}
 							</button>
 						</div>
 						<ul class="space-y-1">
 							{#each data.match.doy as it (it.id)}
 								<li>
 									<label
-										class="flex cursor-pointer items-center gap-2 rounded-md border p-2 text-sm transition-colors {seleccionDoy.has(
+										class="flex cursor-pointer items-center gap-2 rounded-md border p-2 text-sm transition-colors {seleccionDoy[
 											it.id
-										)
+										]
 											? 'border-amber-300 bg-amber-50'
 											: 'border-stone-200 bg-white hover:bg-stone-50'}"
 									>
 										<input
 											type="checkbox"
-											checked={seleccionDoy.has(it.id)}
-											onchange={() => (seleccionDoy = toggle(seleccionDoy, it.id))}
+											bind:checked={seleccionDoy[it.id]}
 											class="h-4 w-4 accent-amber-600"
 										/>
 										{#if it.grupo}
@@ -130,37 +137,34 @@
 							<h2 class="text-base font-semibold">
 								Él/ella me da
 								<span class="text-sm font-normal text-stone-500">
-									({seleccionRecibo.size} de {data.totales.recibo})
+									({idsRecibo.length} de {data.totales.recibo})
 								</span>
 							</h2>
 							<button
 								type="button"
-								onclick={() =>
-									(seleccionRecibo = new Set(
-										seleccionRecibo.size === data.match.recibo.length
-											? []
-											: data.match.recibo.map((it) => it.id)
-									))}
+								onclick={() => {
+									const ids = data.match.recibo.map((it) => it.id);
+									const allOn = ids.every((id) => seleccionRecibo[id]);
+									seleccionRecibo = toggleAll(seleccionRecibo, ids, !allOn);
+								}}
 								class="text-xs text-stone-500 hover:text-stone-900"
 							>
-								{seleccionRecibo.size === data.match.recibo.length ? 'Ninguno' : 'Todos'}
+								{idsRecibo.length === data.match.recibo.length ? 'Ninguno' : 'Todos'}
 							</button>
 						</div>
 						<ul class="space-y-1">
 							{#each data.match.recibo as it (it.id)}
 								<li>
 									<label
-										class="flex cursor-pointer items-center gap-2 rounded-md border p-2 text-sm transition-colors {seleccionRecibo.has(
+										class="flex cursor-pointer items-center gap-2 rounded-md border p-2 text-sm transition-colors {seleccionRecibo[
 											it.id
-										)
+										]
 											? 'border-emerald-300 bg-emerald-50'
 											: 'border-stone-200 bg-white hover:bg-stone-50'}"
 									>
 										<input
 											type="checkbox"
-											checked={seleccionRecibo.has(it.id)}
-											onchange={() =>
-												(seleccionRecibo = toggle(seleccionRecibo, it.id))}
+											bind:checked={seleccionRecibo[it.id]}
 											class="h-4 w-4 accent-emerald-600"
 										/>
 										{#if it.grupo}
@@ -191,19 +195,19 @@
 				<div class="sticky bottom-0 -mx-4 border-t border-stone-200 bg-white/95 px-4 py-3 backdrop-blur">
 					<div class="flex flex-wrap items-center justify-between gap-2">
 						<div class="text-sm text-stone-600">
-							{#if seleccionDoy.size !== seleccionRecibo.size}
+							{#if idsDoy.length !== idsRecibo.length}
 								<span class="text-amber-700">
-									Desbalanceado: {seleccionDoy.size} dados vs {seleccionRecibo.size} recibidos
+									Desbalanceado: {idsDoy.length} dados vs {idsRecibo.length} recibidos
 								</span>
 							{:else}
 								<span class="text-emerald-700">
-									Balanceado: {seleccionDoy.size} ↔ {seleccionRecibo.size}
+									Balanceado: {idsDoy.length} ↔ {idsRecibo.length}
 								</span>
 							{/if}
 						</div>
 						<button
 							type="submit"
-							disabled={seleccionDoy.size === 0 && seleccionRecibo.size === 0}
+							disabled={idsDoy.length === 0 && idsRecibo.length === 0}
 							class="rounded-lg bg-stone-900 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-800 disabled:opacity-40"
 						>
 							Aplicar intercambio

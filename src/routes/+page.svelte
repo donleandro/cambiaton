@@ -72,13 +72,19 @@
 	<header class="sticky top-0 z-10 border-b border-stone-200 bg-white/90 backdrop-blur">
 		<div class="mx-auto max-w-6xl px-4 py-3">
 			<div class="flex flex-wrap items-baseline justify-between gap-2">
-				<div class="flex items-baseline gap-3">
+				<div class="flex items-baseline gap-2">
 					<h1 class="text-xl font-bold tracking-tight">Álbum Mundial 2026</h1>
+					<a
+						href="/cambiaton"
+						class="rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
+					>
+						Cambiatón
+					</a>
 					<a
 						href="/importar"
 						class="rounded-md bg-stone-900 px-2.5 py-1 text-xs font-semibold text-white hover:bg-stone-800"
 					>
-						+ Intercambio
+						Importar
 					</a>
 				</div>
 				<div class="text-sm text-stone-600">
