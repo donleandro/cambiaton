@@ -92,7 +92,7 @@
 <svelte:head><title>Cambiatón en vivo · Álbum 2026</title></svelte:head>
 
 <div class="min-h-screen bg-stone-50 text-stone-900">
-	<header class="border-b border-stone-200 bg-white">
+	<header class="sticky top-0 z-10 border-b border-stone-200 bg-white/95 backdrop-blur">
 		<div class="mx-auto max-w-4xl px-4 py-3">
 			<div class="flex items-center justify-between">
 				<h1 class="text-lg font-bold tracking-tight">Cambiatón en vivo</h1>

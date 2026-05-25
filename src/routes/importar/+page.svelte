@@ -9,7 +9,7 @@
 <svelte:head><title>Importar inventario · Álbum 2026</title></svelte:head>
 
 <div class="min-h-screen bg-stone-50 text-stone-900">
-	<header class="border-b border-stone-200 bg-white">
+	<header class="sticky top-0 z-10 border-b border-stone-200 bg-white/95 backdrop-blur">
 		<div class="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
 			<h1 class="text-xl font-bold tracking-tight">Importar inventario ajeno</h1>
 			<a href="/" class="text-sm text-stone-600 hover:text-stone-900">← Volver al catálogo</a>
