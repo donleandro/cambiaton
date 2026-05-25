@@ -5,11 +5,27 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	type Step = 1 | 2 | 3;
-	let step = $state<Step>(1);
+	type Step = 0 | 1 | 2 | 3;
+	type Inicio = 'mis-faltantes' | 'mis-repetidas';
+
+	let step = $state<Step>(0);
+	let inicio = $state<Inicio | null>(null);
 
 	let recibo = $state<Record<string, boolean>>({});
 	let doy = $state<Record<string, boolean>>({});
+
+	// El paso 1 muestra la lista elegida en el paso 0; el paso 2 la otra.
+	const step1Tipo = $derived<'faltantes' | 'repetidas' | null>(
+		inicio === 'mis-faltantes' ? 'faltantes' : inicio === 'mis-repetidas' ? 'repetidas' : null
+	);
+	const step2Tipo = $derived<'faltantes' | 'repetidas' | null>(
+		inicio === 'mis-faltantes' ? 'repetidas' : inicio === 'mis-repetidas' ? 'faltantes' : null
+	);
+
+	function elegirInicio(opt: Inicio) {
+		inicio = opt;
+		step = 1;
+	}
 
 	let searchFalt = $state('');
 	let grupoFalt = $state('');
@@ -60,8 +76,17 @@
 		if (step < 3) step = (step + 1) as Step;
 	}
 	function prevStep() {
-		if (step > 1) step = (step - 1) as Step;
+		if (step > 0) step = (step - 1) as Step;
 	}
+
+	const mostrarFaltantes = $derived(
+		(step === 1 && step1Tipo === 'faltantes') || (step === 2 && step2Tipo === 'faltantes')
+	);
+	const mostrarRepetidas = $derived(
+		(step === 1 && step1Tipo === 'repetidas') || (step === 2 && step2Tipo === 'repetidas')
+	);
+	const stepDeFaltantes = $derived<Step>(step1Tipo === 'faltantes' ? 1 : 2);
+	const stepDeRepetidas = $derived<Step>(step1Tipo === 'repetidas' ? 1 : 2);
 </script>
 
 <svelte:head><title>Cambiatón en vivo · Álbum 2026</title></svelte:head>
@@ -73,32 +98,40 @@
 				<h1 class="text-lg font-bold tracking-tight">Cambiatón en vivo</h1>
 				<a href="/" class="text-sm text-stone-600 hover:text-stone-900">← Salir</a>
 			</div>
-			<div class="mt-3 flex items-center gap-2">
-				{#each [1, 2, 3] as n (n)}
-					<div class="flex flex-1 items-center gap-2">
-						<button
-							type="button"
-							onclick={() => (step = n as Step)}
-							class="grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold transition-colors {step ===
-							n
-								? 'bg-stone-900 text-white'
-								: step > n
-									? 'bg-emerald-500 text-white'
-									: 'bg-stone-200 text-stone-500'}"
-						>
-							{step > n ? '✓' : n}
-						</button>
-						<div class="min-w-0 flex-1">
-							<div class="truncate text-xs font-medium {step === n ? 'text-stone-900' : 'text-stone-500'}">
-								{n === 1 ? 'Lo que él tiene' : n === 2 ? 'Lo que él necesita' : 'Confirmar'}
+			{#if inicio}
+				{@const labels = [
+					'Elegir inicio',
+					step1Tipo === 'faltantes' ? 'Mis faltantes' : 'Mis repetidas',
+					step2Tipo === 'faltantes' ? 'Mis faltantes' : 'Mis repetidas',
+					'Confirmar'
+				]}
+				<div class="mt-3 flex items-center gap-2">
+					{#each [1, 2, 3] as n (n)}
+						<div class="flex flex-1 items-center gap-2">
+							<button
+								type="button"
+								onclick={() => (step = n as Step)}
+								class="grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold transition-colors {step ===
+								n
+									? 'bg-stone-900 text-white'
+									: step > n
+										? 'bg-emerald-500 text-white'
+										: 'bg-stone-200 text-stone-500'}"
+							>
+								{step > n ? '✓' : n}
+							</button>
+							<div class="min-w-0 flex-1">
+								<div class="truncate text-xs font-medium {step === n ? 'text-stone-900' : 'text-stone-500'}">
+									{labels[n]}
+								</div>
 							</div>
+							{#if n < 3}
+								<div class="h-px flex-1 bg-stone-200"></div>
+							{/if}
 						</div>
-						{#if n < 3}
-							<div class="h-px flex-1 bg-stone-200"></div>
-						{/if}
-					</div>
-				{/each}
-			</div>
+					{/each}
+				</div>
+			{/if}
 		</div>
 	</header>
 
@@ -110,9 +143,48 @@
 			</div>
 		{/if}
 
-		{#if step === 1}
+		{#if step === 0}
 			<section>
-				<h2 class="mb-1 text-lg font-semibold">Paso 1 · ¿Qué de mis faltantes tiene él/ella?</h2>
+				<h2 class="mb-2 text-xl font-bold">¿Por dónde empezamos?</h2>
+				<p class="mb-5 text-sm text-stone-600">
+					Elegí qué lista mirar primero. Eso suele depender de quién tiene el álbum en la mano.
+				</p>
+
+				<div class="grid gap-3 md:grid-cols-2">
+					<button
+						type="button"
+						onclick={() => elegirInicio('mis-faltantes')}
+						class="rounded-lg border border-emerald-200 bg-white p-5 text-left transition-colors hover:border-emerald-400 hover:bg-emerald-50"
+					>
+						<div class="mb-1 text-base font-bold text-emerald-700">Empezar por mis faltantes</div>
+						<div class="text-sm text-stone-600">
+							Vos leés tus faltantes en voz alta. La otra persona te dice cuáles tiene repetidas
+							y las marcás. Después seguimos con tus repetidas.
+						</div>
+						<div class="mt-3 text-xs font-semibold text-emerald-700">
+							{data.misFaltantes.length} faltantes → revisás primero
+						</div>
+					</button>
+
+					<button
+						type="button"
+						onclick={() => elegirInicio('mis-repetidas')}
+						class="rounded-lg border border-amber-200 bg-white p-5 text-left transition-colors hover:border-amber-400 hover:bg-amber-50"
+					>
+						<div class="mb-1 text-base font-bold text-amber-700">Empezar por mis repetidas</div>
+						<div class="text-sm text-stone-600">
+							La otra persona te dice qué le falta. Vos buscás en tus repetidas y marcás las que
+							tengas. Después revisamos tus faltantes.
+						</div>
+						<div class="mt-3 text-xs font-semibold text-amber-700">
+							{data.misRepetidas.length} repetidas → revisás primero
+						</div>
+					</button>
+				</div>
+			</section>
+		{:else if mostrarFaltantes}
+			<section>
+				<h2 class="mb-1 text-lg font-semibold">Paso {step} · Mis faltantes — ¿cuáles tiene él/ella?</h2>
 				<p class="mb-4 text-sm text-stone-600">
 					Revisá tus faltantes y marcá las que la otra persona tenga repetidas.
 					Seleccionados: <strong>{idsRecibo.length}</strong>.
@@ -169,9 +241,9 @@
 					{/each}
 				</ul>
 			</section>
-		{:else if step === 2}
+		{:else if mostrarRepetidas}
 			<section>
-				<h2 class="mb-1 text-lg font-semibold">Paso 2 · ¿Qué de mis repetidas le falta a él/ella?</h2>
+				<h2 class="mb-1 text-lg font-semibold">Paso {step} · Mis repetidas — ¿cuáles necesita él/ella?</h2>
 				<p class="mb-4 text-sm text-stone-600">
 					Revisá tus repetidas y marcá las que la otra persona necesite.
 					Seleccionados: <strong>{idsDoy.length}</strong>.
@@ -231,7 +303,7 @@
 					{/each}
 				</ul>
 			</section>
-		{:else}
+		{:else if step === 3}
 			<section>
 				<h2 class="mb-1 text-lg font-semibold">Paso 3 · Confirmar intercambio</h2>
 				<p class="mb-4 text-sm text-stone-600">
@@ -242,7 +314,7 @@
 					<div>
 						<h3 class="mb-2 flex items-center justify-between border-b border-stone-200 pb-1">
 							<span class="font-semibold">Yo recibo <span class="text-stone-500">({stickersRecibo.length})</span></span>
-							<button type="button" onclick={() => (step = 1)} class="text-xs text-stone-500 hover:text-stone-900">Editar paso 1</button>
+							<button type="button" onclick={() => (step = stepDeFaltantes)} class="text-xs text-stone-500 hover:text-stone-900">Editar paso {stepDeFaltantes}</button>
 						</h3>
 						<ul class="space-y-1">
 							{#each stickersRecibo as s (s.id)}
@@ -261,7 +333,7 @@
 					<div>
 						<h3 class="mb-2 flex items-center justify-between border-b border-stone-200 pb-1">
 							<span class="font-semibold">Yo doy <span class="text-stone-500">({stickersDoy.length})</span></span>
-							<button type="button" onclick={() => (step = 2)} class="text-xs text-stone-500 hover:text-stone-900">Editar paso 2</button>
+							<button type="button" onclick={() => (step = stepDeRepetidas)} class="text-xs text-stone-500 hover:text-stone-900">Editar paso {stepDeRepetidas}</button>
 						</h3>
 						<ul class="space-y-1">
 							{#each stickersDoy as s (s.id)}
@@ -309,27 +381,26 @@
 		{/if}
 	</div>
 
-	<nav class="sticky bottom-0 border-t border-stone-200 bg-white/95 backdrop-blur">
-		<div class="mx-auto flex max-w-4xl items-center justify-between gap-2 px-4 py-3">
-			<button
-				type="button"
-				onclick={prevStep}
-				disabled={step === 1}
-				class="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-stone-50 disabled:opacity-30"
-			>
-				← Anterior
-			</button>
-			<div class="text-xs text-stone-500">
-				Paso {step} de 3
+	{#if step > 0}
+		<nav class="sticky bottom-0 border-t border-stone-200 bg-white/95 backdrop-blur">
+			<div class="mx-auto flex max-w-4xl items-center justify-between gap-2 px-4 py-3">
+				<button
+					type="button"
+					onclick={prevStep}
+					class="rounded-lg border border-stone-300 bg-white px-4 py-2 text-sm font-semibold hover:bg-stone-50"
+				>
+					← {step === 1 ? 'Cambiar inicio' : 'Anterior'}
+				</button>
+				<div class="text-xs text-stone-500">Paso {step} de 3</div>
+				<button
+					type="button"
+					onclick={nextStep}
+					disabled={step === 3}
+					class="rounded-lg bg-stone-900 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-800 disabled:opacity-30"
+				>
+					Siguiente →
+				</button>
 			</div>
-			<button
-				type="button"
-				onclick={nextStep}
-				disabled={step === 3}
-				class="rounded-lg bg-stone-900 px-4 py-2 text-sm font-semibold text-white hover:bg-stone-800 disabled:opacity-30"
-			>
-				Siguiente →
-			</button>
-		</div>
-	</nav>
+		</nav>
+	{/if}
 </div>
