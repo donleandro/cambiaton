@@ -1,17 +1,19 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { page } from '$app/state';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
 
 	type Filter = 'todos' | 'faltantes' | 'repetidas';
 	type Sort = 'mundial' | 'az';
-	let filter = $state<Filter>('todos');
+	const initialParams = page.url.searchParams;
+	let filter = $state<Filter>((initialParams.get('filter') as Filter) ?? 'todos');
 	let sort = $state<Sort>('mundial');
 	let search = $state('');
-	let confederacion = $state<string>('');
-	let equipo = $state<string>('');
-	let grupo = $state<string>('');
+	let confederacion = $state<string>(initialParams.get('confederacion') ?? '');
+	let equipo = $state<string>(initialParams.get('equipo') ?? '');
+	let grupo = $state<string>(initialParams.get('grupo') ?? '');
 
 	const visible = $derived(
 		data.stickers.filter((s) => {
@@ -72,8 +74,14 @@
 	<header class="sticky top-0 z-10 border-b border-stone-200 bg-white/90 backdrop-blur">
 		<div class="mx-auto max-w-6xl px-4 py-3">
 			<div class="flex flex-wrap items-baseline justify-between gap-2">
-				<div class="flex items-baseline gap-2">
+				<div class="flex flex-wrap items-baseline gap-2">
 					<h1 class="text-xl font-bold tracking-tight">Álbum Mundial 2026</h1>
+					<a
+						href="/reportes"
+						class="rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-indigo-700"
+					>
+						Reportes
+					</a>
 					<a
 						href="/cambiaton"
 						class="rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
