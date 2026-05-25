@@ -131,6 +131,44 @@
 						</div>
 					{/each}
 				</div>
+
+				{#if mostrarFaltantes}
+					<div class="mt-3 flex flex-wrap gap-2">
+						<input
+							type="search"
+							placeholder="Buscar en faltantes (ID, equipo o número)…"
+							bind:value={searchFalt}
+							class="min-w-[180px] flex-1 rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+						/>
+						<select
+							bind:value={grupoFalt}
+							class="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm"
+						>
+							<option value="">Todos los grupos</option>
+							{#each GRUPOS as g (g)}
+								<option value={g}>Grupo {g}</option>
+							{/each}
+						</select>
+					</div>
+				{:else if mostrarRepetidas}
+					<div class="mt-3 flex flex-wrap gap-2">
+						<input
+							type="search"
+							placeholder="Buscar en repetidas (ID, equipo o número)…"
+							bind:value={searchRep}
+							class="min-w-[180px] flex-1 rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+						/>
+						<select
+							bind:value={grupoRep}
+							class="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm"
+						>
+							<option value="">Todos los grupos</option>
+							{#each GRUPOS as g (g)}
+								<option value={g}>Grupo {g}</option>
+							{/each}
+						</select>
+					</div>
+				{/if}
 			{/if}
 		</div>
 	</header>
@@ -185,28 +223,10 @@
 		{:else if mostrarFaltantes}
 			<section>
 				<h2 class="mb-1 text-lg font-semibold">Paso {step} · Mis faltantes — ¿cuáles tiene él/ella?</h2>
-				<p class="mb-4 text-sm text-stone-600">
-					Revisá tus faltantes y marcá las que la otra persona tenga repetidas.
-					Seleccionados: <strong>{idsRecibo.length}</strong>.
+				<p class="mb-3 text-sm text-stone-600">
+					Marcá las que la otra persona tenga repetidas. Seleccionados:
+					<strong>{idsRecibo.length}</strong>.
 				</p>
-
-				<div class="mb-3 flex flex-wrap gap-2">
-					<input
-						type="search"
-						placeholder="Buscar…"
-						bind:value={searchFalt}
-						class="min-w-[180px] flex-1 rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
-					/>
-					<select
-						bind:value={grupoFalt}
-						class="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm"
-					>
-						<option value="">Todos los grupos</option>
-						{#each GRUPOS as g (g)}
-							<option value={g}>Grupo {g}</option>
-						{/each}
-					</select>
-				</div>
 
 				<div class="mb-3 text-xs text-stone-500">Mostrando {filtFaltantes.length} de {data.misFaltantes.length} faltantes</div>
 
@@ -244,28 +264,10 @@
 		{:else if mostrarRepetidas}
 			<section>
 				<h2 class="mb-1 text-lg font-semibold">Paso {step} · Mis repetidas — ¿cuáles necesita él/ella?</h2>
-				<p class="mb-4 text-sm text-stone-600">
-					Revisá tus repetidas y marcá las que la otra persona necesite.
-					Seleccionados: <strong>{idsDoy.length}</strong>.
+				<p class="mb-3 text-sm text-stone-600">
+					Marcá las que la otra persona necesite. Seleccionados:
+					<strong>{idsDoy.length}</strong>.
 				</p>
-
-				<div class="mb-3 flex flex-wrap gap-2">
-					<input
-						type="search"
-						placeholder="Buscar…"
-						bind:value={searchRep}
-						class="min-w-[180px] flex-1 rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
-					/>
-					<select
-						bind:value={grupoRep}
-						class="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm"
-					>
-						<option value="">Todos los grupos</option>
-						{#each GRUPOS as g (g)}
-							<option value={g}>Grupo {g}</option>
-						{/each}
-					</select>
-				</div>
 
 				<div class="mb-3 text-xs text-stone-500">Mostrando {filtRepetidas.length} de {data.misRepetidas.length} repetidas</div>
 

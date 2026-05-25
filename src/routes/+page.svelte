@@ -93,46 +93,46 @@
 					· repetidas <span class="font-semibold text-amber-600">{data.stats.repetidasTotal}</span>
 				</div>
 			</div>
-			<div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-stone-200">
+			<div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-stone-200">
 				<div
 					class="h-full bg-gradient-to-r from-emerald-500 to-emerald-600 transition-all"
 					style="width: {pct}%"
 				></div>
 			</div>
-			<div class="mt-1 text-right text-xs text-stone-500">{pct}%</div>
+
+			<div class="mt-3 flex flex-wrap gap-2">
+				<input
+					type="search"
+					placeholder="Buscar por ID, equipo o número…"
+					bind:value={search}
+					class="min-w-[180px] flex-1 rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+				/>
+				<select
+					bind:value={confederacion}
+					class="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm"
+				>
+					<option value="">Confed.</option>
+					{#each data.confederaciones as c (c)}
+						<option value={c}>{c}</option>
+					{/each}
+				</select>
+				<select bind:value={grupo} class="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm">
+					<option value="">Grupo</option>
+					{#each GRUPOS as g (g)}
+						<option value={g}>Grupo {g}</option>
+					{/each}
+				</select>
+				<select bind:value={equipo} class="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm">
+					<option value="">Equipo</option>
+					{#each data.equipos as e (e)}
+						<option value={e}>{e}</option>
+					{/each}
+				</select>
+			</div>
 		</div>
 	</header>
 
 	<div class="mx-auto max-w-6xl px-4 py-4">
-		<div class="mb-4 flex flex-wrap gap-2">
-			<input
-				type="search"
-				placeholder="Buscar por ID, equipo o número…"
-				bind:value={search}
-				class="min-w-[200px] flex-1 rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
-			/>
-			<select
-				bind:value={confederacion}
-				class="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm"
-			>
-				<option value="">Todas las confederaciones</option>
-				{#each data.confederaciones as c (c)}
-					<option value={c}>{c}</option>
-				{/each}
-			</select>
-			<select bind:value={grupo} class="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm">
-				<option value="">Todos los grupos</option>
-				{#each GRUPOS as g (g)}
-					<option value={g}>Grupo {g}</option>
-				{/each}
-			</select>
-			<select bind:value={equipo} class="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm">
-				<option value="">Todos los equipos</option>
-				{#each data.equipos as e (e)}
-					<option value={e}>{e}</option>
-				{/each}
-			</select>
-		</div>
 
 		<div class="mb-3 flex flex-wrap gap-3">
 			<div class="flex gap-1 rounded-lg bg-stone-200 p-1 text-sm">
