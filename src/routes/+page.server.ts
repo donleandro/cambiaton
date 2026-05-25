@@ -41,12 +41,14 @@ export const actions: Actions = {
 		const id = String(data.get('id') ?? '');
 		const delta = Number(data.get('delta') ?? 0);
 		if (!id) return fail(400, { message: 'id requerido' });
+		// No incrementar repetidas si todavía no se tiene el sticker.
+		// Prioridad: que vaya al álbum primero. Decrementos siempre permitidos
+		// (capean en 0 vía SQL).
+		const condicion = delta > 0 ? sql`${stickers.id} = ${id} AND ${stickers.tengo} = 1` : eq(stickers.id, id);
 		await db
 			.update(stickers)
-			.set({
-				repetidas: sql`max(0, ${stickers.repetidas} + ${delta})`
-			})
-			.where(eq(stickers.id, id));
+			.set({ repetidas: sql`max(0, ${stickers.repetidas} + ${delta})` })
+			.where(condicion);
 		return { ok: true };
 	},
 

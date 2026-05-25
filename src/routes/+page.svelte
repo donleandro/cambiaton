@@ -219,14 +219,19 @@
 										</button>
 									</form>
 								</div>
-								<div class="mt-1 flex items-center justify-between gap-1">
+								<div
+									class="mt-1 flex items-center justify-between gap-1 {s.tengo
+										? ''
+										: 'pointer-events-none opacity-40'}"
+									title={s.tengo ? '' : 'Primero marcalo como obtenido (✓) para registrar repetidas'}
+								>
 									<form method="POST" action="?/changeRepetidas" use:enhance>
 										<input type="hidden" name="id" value={s.id} />
 										<input type="hidden" name="delta" value="-1" />
 										<button
 											type="submit"
 											class="grid h-7 w-7 place-items-center rounded border border-stone-300 bg-white text-base hover:bg-stone-100 disabled:opacity-30"
-											disabled={s.repetidas === 0}
+											disabled={!s.tengo || s.repetidas === 0}
 											aria-label="Menos repetida"
 										>−</button>
 									</form>
@@ -243,7 +248,8 @@
 										<input type="hidden" name="delta" value="1" />
 										<button
 											type="submit"
-											class="grid h-7 w-7 place-items-center rounded border border-stone-300 bg-white text-base hover:bg-stone-100"
+											class="grid h-7 w-7 place-items-center rounded border border-stone-300 bg-white text-base hover:bg-stone-100 disabled:opacity-30"
+											disabled={!s.tengo}
 											aria-label="Más repetida"
 										>+</button>
 									</form>
