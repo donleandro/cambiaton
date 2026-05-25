@@ -72,7 +72,15 @@
 	<header class="sticky top-0 z-10 border-b border-stone-200 bg-white/90 backdrop-blur">
 		<div class="mx-auto max-w-6xl px-4 py-3">
 			<div class="flex flex-wrap items-baseline justify-between gap-2">
-				<h1 class="text-xl font-bold tracking-tight">Álbum Mundial 2026</h1>
+				<div class="flex items-baseline gap-3">
+					<h1 class="text-xl font-bold tracking-tight">Álbum Mundial 2026</h1>
+					<a
+						href="/importar"
+						class="rounded-md bg-stone-900 px-2.5 py-1 text-xs font-semibold text-white hover:bg-stone-800"
+					>
+						+ Intercambio
+					</a>
+				</div>
 				<div class="text-sm text-stone-600">
 					<span class="font-semibold text-stone-900">{data.stats.tengo}</span> / {data.stats.total}
 					· faltan <span class="font-semibold text-rose-600">{data.stats.faltan}</span>
