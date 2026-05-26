@@ -80,7 +80,7 @@ export function parseInventario(
 			const numeros = figu[2]
 				.split(/[,\s]+/)
 				.map((n) => Number(n))
-				.filter((n) => Number.isFinite(n) && n > 0);
+				.filter((n) => Number.isFinite(n) && n >= 0);
 			for (const num of numeros) {
 				const id = porCodigoNum.get(`${code}-${num}`);
 				if (id) items.push({ id, count: 1 });
