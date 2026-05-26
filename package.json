@@ -16,7 +16,8 @@
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio",
-		"db:seed": "tsx --env-file=.env scripts/seed.ts"
+		"db:seed": "tsx --env-file=.env scripts/seed.ts",
+		"hash-password": "tsx scripts/hash-password.ts"
 	},
 	"devDependencies": {
 		"@rolldown/binding-win32-x64-msvc": "^1.0.2",

@@ -95,10 +95,23 @@
 						Importar
 					</a>
 				</div>
-				<div class="text-sm text-stone-600">
-					<span class="font-semibold text-stone-900">{data.stats.tengo}</span> / {data.stats.total}
-					· faltan <span class="font-semibold text-rose-600">{data.stats.faltan}</span>
-					· repetidas <span class="font-semibold text-amber-600">{data.stats.repetidasTotal}</span>
+				<div class="flex items-center gap-2 text-sm text-stone-600">
+					<span>
+						<span class="font-semibold text-stone-900">{data.stats.tengo}</span> / {data.stats.total}
+						· faltan <span class="font-semibold text-rose-600">{data.stats.faltan}</span>
+						· repetidas <span class="font-semibold text-amber-600">{data.stats.repetidasTotal}</span>
+					</span>
+					{#if data.authEnabled}
+						<form method="POST" action="/logout">
+							<button
+								type="submit"
+								class="rounded-md border border-stone-300 px-2 py-0.5 text-xs text-stone-600 hover:bg-stone-50"
+								title="Cerrar sesión"
+							>
+								Salir
+							</button>
+						</form>
+					{/if}
 				</div>
 			</div>
 			<div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-stone-200">
