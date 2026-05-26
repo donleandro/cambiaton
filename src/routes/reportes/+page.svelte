@@ -6,6 +6,18 @@
 	type Orden = 'album' | 'menos' | 'mas' | 'az';
 	let orden = $state<Orden>('menos');
 
+	let copiado = $state<'faltantes' | 'repetidas' | null>(null);
+	async function copiar(qué: 'faltantes' | 'repetidas') {
+		const texto = qué === 'faltantes' ? data.exportFaltantes : data.exportRepetidas;
+		try {
+			await navigator.clipboard.writeText(texto);
+			copiado = qué;
+			setTimeout(() => (copiado = null), 2000);
+		} catch {
+			alert('No se pudo copiar. Seleccioná y copiá manualmente.');
+		}
+	}
+
 	const equiposOrdenados = $derived.by(() => {
 		const arr = [...data.porEquipo].filter((e) => e.confederacion !== 'Global');
 		if (orden === 'album') return arr.sort((a, b) => a.numeroInicio - b.numeroInicio);
@@ -143,6 +155,56 @@
 						{/each}
 					</tbody>
 				</table>
+			</div>
+		</section>
+
+		<!-- EXPORTAR -->
+		<section>
+			<h2 class="mb-3 text-sm font-semibold uppercase tracking-wider text-stone-500">
+				Compartir mi lista (formato Figuritas)
+			</h2>
+			<p class="mb-3 text-xs text-stone-600">
+				Copialo y pegáselo a otra persona — el formato es compatible con la app Figuritas y similares.
+			</p>
+
+			<div class="grid gap-3 md:grid-cols-2">
+				<div class="rounded-lg border border-rose-200 bg-white">
+					<div class="flex items-center justify-between border-b border-rose-100 bg-rose-50 px-3 py-2">
+						<span class="text-sm font-semibold text-rose-700">Mis faltantes ({data.general.faltan})</span>
+						<button
+							type="button"
+							onclick={() => copiar('faltantes')}
+							class="rounded-md bg-rose-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-rose-700"
+						>
+							{copiado === 'faltantes' ? '✓ Copiado' : 'Copiar'}
+						</button>
+					</div>
+					<textarea
+						readonly
+						rows="10"
+						class="w-full resize-y border-0 bg-white p-3 font-mono text-xs focus:outline-none"
+						value={data.exportFaltantes}
+					></textarea>
+				</div>
+
+				<div class="rounded-lg border border-amber-200 bg-white">
+					<div class="flex items-center justify-between border-b border-amber-100 bg-amber-50 px-3 py-2">
+						<span class="text-sm font-semibold text-amber-700">Mis repetidas ({data.general.repetidas})</span>
+						<button
+							type="button"
+							onclick={() => copiar('repetidas')}
+							class="rounded-md bg-amber-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-700"
+						>
+							{copiado === 'repetidas' ? '✓ Copiado' : 'Copiar'}
+						</button>
+					</div>
+					<textarea
+						readonly
+						rows="10"
+						class="w-full resize-y border-0 bg-white p-3 font-mono text-xs focus:outline-none"
+						value={data.exportRepetidas}
+					></textarea>
+				</div>
 			</div>
 		</section>
 

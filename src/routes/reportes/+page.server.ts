@@ -1,6 +1,7 @@
 import { db } from '$lib/server/db';
 import { stickers } from '$lib/server/db/schema';
 import { grupoDe } from '$lib/server/groups';
+import { exportFiguritas } from '$lib/server/matcher';
 import type { PageServerLoad } from './$types';
 
 type Bucket = {
@@ -87,6 +88,11 @@ export const load: PageServerLoad = async () => {
 	const sobresOptimistas =
 		general.faltan > 0 ? Math.ceil(general.faltan / (7 * 0.6)) : 0;
 
+	const misFaltantes = all.filter((s) => !s.tengo);
+	const misRepetidas = all.filter((s) => s.repetidas > 0);
+	const exportFaltantes = exportFiguritas(misFaltantes, 'Me faltan');
+	const exportRepetidas = exportFiguritas(misRepetidas, 'Repetidas');
+
 	return {
 		general: {
 			...general,
@@ -97,6 +103,8 @@ export const load: PageServerLoad = async () => {
 			sobresOptimistas
 		},
 		porConfederacion,
-		porEquipo
+		porEquipo,
+		exportFaltantes,
+		exportRepetidas
 	};
 };

@@ -76,11 +76,14 @@
 				</div>
 			</div>
 
-			<div class="rounded-md bg-stone-100 p-3 text-xs text-stone-600">
-				<strong>Formato aceptado:</strong> un ID por línea (<code class="font-mono">GER-01</code>), o
-				número del álbum suelto (<code class="font-mono">253</code>). Para cantidades:
-				<code class="font-mono">GER-01 x2</code> o <code class="font-mono">GER-01 (2)</code>. Tolerante
-				a viñetas (<code>•</code>, <code>-</code>) y separadores por coma.
+			<div class="rounded-md bg-stone-100 p-3 text-xs text-stone-600 leading-relaxed">
+				<strong>Formatos aceptados (podés mezclar):</strong><br />
+				• <strong>Figuritas</strong>: pegá tal cual lo que te pasen, ej.
+				<code class="font-mono">MEX 🇲🇽: 4, 5, 6</code> o
+				<code class="font-mono">FWC 🏆: 2, 3, 4</code>. Headers, emojis y URLs se ignoran.<br />
+				• <strong>IDs sueltos</strong>: <code class="font-mono">GER-01</code> uno por línea, opcional
+				<code class="font-mono">x2</code> o <code class="font-mono">(2)</code> para cantidades.<br />
+				• <strong>Número del álbum</strong>: <code class="font-mono">253</code> (se resuelve contra el catálogo).
 			</div>
 
 			{#if form?.error}
