@@ -27,7 +27,7 @@ function pct(b: Bucket): number {
 }
 
 export const load: PageServerLoad = async () => {
-	const all = await db.select().from(stickers).orderBy(stickers.numero);
+	const all = await db.select().from(stickers).orderBy(stickers.id);
 
 	const general = vacio();
 	for (const s of all) add(general, s);

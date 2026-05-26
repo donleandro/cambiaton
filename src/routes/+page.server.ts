@@ -6,7 +6,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { fail } from '@sveltejs/kit';
 
 export const load: PageServerLoad = async () => {
-	const all = await db.select().from(stickers).orderBy(stickers.equipo, stickers.numero);
+	const all = await db.select().from(stickers).orderBy(stickers.equipo, stickers.id);
 
 	const enriched = all.map((s) => ({ ...s, grupo: grupoDe(s.equipo) }));
 

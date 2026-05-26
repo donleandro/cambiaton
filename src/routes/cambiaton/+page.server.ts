@@ -6,7 +6,7 @@ import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
-	const all = await db.select().from(stickers).orderBy(stickers.numero);
+	const all = await db.select().from(stickers).orderBy(stickers.id);
 
 	const misFaltantes = all
 		.filter((s) => !s.tengo)
