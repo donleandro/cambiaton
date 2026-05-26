@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { stickers } from '$lib/server/db/schema';
-import { grupoDe } from '$lib/server/groups';
+import { grupoDe, posicionAlbum } from '$lib/server/groups';
 import { exportFiguritas } from '$lib/server/matcher';
 import type { PageServerLoad } from './$types';
 
@@ -42,7 +42,12 @@ export const load: PageServerLoad = async () => {
 	// Por equipo
 	const equipoMap = new Map<
 		string,
-		Bucket & { confederacion: string; grupo: string | null; numeroInicio: number }
+		Bucket & {
+			confederacion: string;
+			grupo: string | null;
+			numeroInicio: number;
+			posicion: number;
+		}
 	>();
 	for (const s of all) {
 		let e = equipoMap.get(s.equipo);
@@ -51,7 +56,8 @@ export const load: PageServerLoad = async () => {
 				...vacio(),
 				confederacion: s.confederacion,
 				grupo: grupoDe(s.equipo),
-				numeroInicio: s.numero
+				numeroInicio: s.numero,
+				posicion: posicionAlbum(s.equipo)
 			};
 			equipoMap.set(s.equipo, e);
 		} else if (s.numero < e.numeroInicio) {

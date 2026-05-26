@@ -48,15 +48,14 @@
 	const equipoOrder = $derived.by(() => {
 		const equipos = Object.keys(grouped);
 		if (sort === 'az') return equipos.sort((a, b) => a.localeCompare(b, 'es'));
-		// Orden del Mundial: por grupo A→L, dentro del grupo por nombre.
-		// Equipos sin grupo (Introducción, Leyendas y Estadios) van al final.
+		// Orden del Mundial: por posición oficial del sorteo (pot 1→4 dentro de
+		// cada grupo). Equipos no listados (Introducción, Leyendas) → Infinity,
+		// quedan al final.
 		return equipos.sort((a, b) => {
-			const ga = grouped[a][0].grupo;
-			const gb = grouped[b][0].grupo;
-			if (ga && gb) return ga.localeCompare(gb) || a.localeCompare(b, 'es');
-			if (ga && !gb) return -1;
-			if (!ga && gb) return 1;
-			// Ambos sin grupo: por menor número (Intro antes que Leyendas)
+			const pa = grouped[a][0].posicion;
+			const pb = grouped[b][0].posicion;
+			if (pa !== pb) return pa - pb;
+			// Ambos sin posición: ordenar por menor numero (Intro antes que Leyendas)
 			const na = grouped[a].reduce((m, s) => (s.numero < m ? s.numero : m), Infinity);
 			const nb = grouped[b].reduce((m, s) => (s.numero < m ? s.numero : m), Infinity);
 			return na - nb;

@@ -20,10 +20,10 @@
 
 	const equiposOrdenados = $derived.by(() => {
 		const arr = [...data.porEquipo].filter((e) => e.confederacion !== 'Global');
-		if (orden === 'album') return arr.sort((a, b) => a.numeroInicio - b.numeroInicio);
+		if (orden === 'album') return arr.sort((a, b) => a.posicion - b.posicion);
 		if (orden === 'az') return arr.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
-		if (orden === 'menos') return arr.sort((a, b) => a.pct - b.pct); // menos completos primero
-		return arr.sort((a, b) => b.pct - a.pct); // más completos primero
+		if (orden === 'menos') return arr.sort((a, b) => a.pct - b.pct);
+		return arr.sort((a, b) => b.pct - a.pct);
 	});
 
 	function colorPct(p: number): string {

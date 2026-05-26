@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { stickers } from '$lib/server/db/schema';
-import { grupoDe } from '$lib/server/groups';
+import { grupoDe, posicionAlbum } from '$lib/server/groups';
 import { eq, sql } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 import { fail } from '@sveltejs/kit';
@@ -8,7 +8,11 @@ import { fail } from '@sveltejs/kit';
 export const load: PageServerLoad = async () => {
 	const all = await db.select().from(stickers).orderBy(stickers.equipo, stickers.id);
 
-	const enriched = all.map((s) => ({ ...s, grupo: grupoDe(s.equipo) }));
+	const enriched = all.map((s) => ({
+		...s,
+		grupo: grupoDe(s.equipo),
+		posicion: posicionAlbum(s.equipo)
+	}));
 
 	const tengo = enriched.filter((s) => s.tengo).length;
 	const faltan = enriched.length - tengo;
