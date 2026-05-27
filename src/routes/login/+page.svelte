@@ -48,5 +48,15 @@
 				{loading ? 'Entrando…' : 'Entrar'}
 			</button>
 		</form>
+
+		<div class="mt-6 border-t border-stone-100 pt-4 text-center">
+			<p class="text-xs text-stone-500">¿No sos el dueño del álbum?</p>
+			<a
+				href="/compartir"
+				class="mt-1 inline-block text-sm font-semibold text-stone-900 hover:underline"
+			>
+				Compartí tu lista de stickers →
+			</a>
+		</div>
 	</div>
 </div>
