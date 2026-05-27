@@ -25,6 +25,12 @@
 		for (const id of ids) next[id] = turnOn;
 		return next;
 	}
+
+	const STATUS_TONE: Record<string, string> = {
+		pendiente: 'bg-amber-100 text-amber-800',
+		aplicado: 'bg-emerald-100 text-emerald-800',
+		archivado: 'bg-stone-100 text-stone-500'
+	};
 </script>
 
 <svelte:head><title>Intercambio · {data.importacion.nombre}</title></svelte:head>
@@ -33,15 +39,31 @@
 	<header class="sticky top-0 z-10 border-b border-stone-200 bg-white/95 backdrop-blur">
 		<div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
 			<div>
-				<h1 class="text-xl font-bold tracking-tight">Intercambio con {data.importacion.nombre}</h1>
+				<div class="flex flex-wrap items-baseline gap-2">
+					<h1 class="text-xl font-bold tracking-tight">Intercambio con {data.importacion.nombre}</h1>
+					<span class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider {STATUS_TONE[data.importacion.status]}">
+						{data.importacion.status}
+					</span>
+					{#if data.importacion.origen === 'publico'}
+						<span class="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-700">público</span>
+					{/if}
+				</div>
 				<p class="text-xs text-stone-500">
 					{new Date(data.importacion.fecha).toLocaleString('es-MX')} ·
 					Balanceado óptimo: <strong>{data.match.balanceado}</strong>
 				</p>
 			</div>
-			<div class="flex gap-3 text-sm">
-				<a href="/importar" class="text-stone-600 hover:text-stone-900">+ Nuevo</a>
-				<a href="/" class="text-stone-600 hover:text-stone-900">← Catálogo</a>
+			<div class="flex items-center gap-3 text-sm">
+				<a href="/intercambios" class="text-stone-600 hover:text-stone-900">← Recibidos</a>
+				<form method="POST" action="?/archivar" use:enhance>
+					<button
+						type="submit"
+						class="rounded-md border border-stone-300 bg-white px-2 py-1 text-xs text-stone-700 hover:bg-stone-50"
+						title="Quitar de pendientes sin tocar tu colección"
+					>
+						Archivar
+					</button>
+				</form>
 			</div>
 		</div>
 	</header>

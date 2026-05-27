@@ -5,7 +5,7 @@ import {
 	SESSION_COOKIE_NAME
 } from '$lib/server/auth';
 
-const RUTAS_PUBLICAS = ['/login'];
+const RUTAS_PUBLICAS = ['/login', '/compartir'];
 
 export const handle: Handle = async ({ event, resolve }) => {
 	if (!authEnabled()) {

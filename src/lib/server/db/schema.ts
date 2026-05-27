@@ -26,7 +26,11 @@ export const imports = sqliteTable('imports', {
 	payload: text('payload', { mode: 'json' }).notNull().$type<{
 		faltantes: string[];
 		repetidas: { id: string; count: number }[];
-	}>()
+	}>(),
+	status: text('status', { enum: ['pendiente', 'aplicado', 'archivado'] })
+		.notNull()
+		.default('pendiente'),
+	origen: text('origen', { enum: ['publico', 'manual'] }).notNull().default('manual')
 });
 
 export type Sticker = typeof stickers.$inferSelect;

@@ -88,10 +88,15 @@
 						Cambiatón
 					</a>
 					<a
-						href="/importar"
-						class="rounded-md bg-stone-900 px-2.5 py-1 text-xs font-semibold text-white hover:bg-stone-800"
+						href="/intercambios"
+						class="relative rounded-md bg-stone-900 px-2.5 py-1 text-xs font-semibold text-white hover:bg-stone-800"
 					>
-						Importar
+						Recibidos
+						{#if data.pendientes > 0}
+							<span class="absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+								{data.pendientes}
+							</span>
+						{/if}
 					</a>
 				</div>
 				<div class="flex items-center gap-2 text-sm text-stone-600">

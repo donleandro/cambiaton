@@ -3,7 +3,7 @@ import { stickers, imports } from '$lib/server/db/schema';
 import { grupoDe } from '$lib/server/groups';
 import { calcularMatch, type InventarioAjeno } from '$lib/server/matcher';
 import { eq, inArray, sql } from 'drizzle-orm';
-import { error, fail } from '@sveltejs/kit';
+import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params }) => {
@@ -21,7 +21,13 @@ export const load: PageServerLoad = async ({ params }) => {
 		items.map((it) => ({ ...it, grupo: grupoDe(it.equipo) }));
 
 	return {
-		importacion: { id: imp.id, nombre: imp.nombre, fecha: imp.fecha },
+		importacion: {
+			id: imp.id,
+			nombre: imp.nombre,
+			fecha: imp.fecha,
+			status: imp.status,
+			origen: imp.origen
+		},
 		match: {
 			doy: enrich(match.doy),
 			recibo: enrich(match.recibo),
@@ -35,7 +41,10 @@ export const load: PageServerLoad = async ({ params }) => {
 };
 
 export const actions: Actions = {
-	confirmar: async ({ request }) => {
+	confirmar: async ({ request, params }) => {
+		const importId = Number(params.id);
+		if (!Number.isInteger(importId)) return fail(400, { error: 'ID inválido' });
+
 		const data = await request.formData();
 		const dadosRaw = String(data.get('dados') ?? '');
 		const recibidosRaw = String(data.get('recibidos') ?? '');
@@ -46,7 +55,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Seleccioná al menos un sticker.' });
 		}
 
-		// Para los DADOS: restar 1 a repetidas (cap en 0)
+		// DADOS: -1 repetidas (cap 0)
 		if (dados.length > 0) {
 			await db
 				.update(stickers)
@@ -54,14 +63,37 @@ export const actions: Actions = {
 				.where(inArray(stickers.id, dados));
 		}
 
-		// Para los RECIBIDOS: marcar tengo=true (y NO incrementar repetidas porque es el primero)
+		// RECIBIDOS: tengo=true
 		if (recibidos.length > 0) {
-			await db
-				.update(stickers)
-				.set({ tengo: true })
-				.where(inArray(stickers.id, recibidos));
+			await db.update(stickers).set({ tengo: true }).where(inArray(stickers.id, recibidos));
 		}
 
+		// Marcar el import como aplicado para no contarlo más en pendientes
+		await db
+			.update(imports)
+			.set({ status: 'aplicado' })
+			.where(eq(imports.id, importId));
+
 		return { ok: true, dados: dados.length, recibidos: recibidos.length };
+	},
+
+	archivar: async ({ params }) => {
+		const importId = Number(params.id);
+		if (!Number.isInteger(importId)) return fail(400, { error: 'ID inválido' });
+		await db
+			.update(imports)
+			.set({ status: 'archivado' })
+			.where(eq(imports.id, importId));
+		throw redirect(303, '/intercambios');
+	},
+
+	reactivar: async ({ params }) => {
+		const importId = Number(params.id);
+		if (!Number.isInteger(importId)) return fail(400, { error: 'ID inválido' });
+		await db
+			.update(imports)
+			.set({ status: 'pendiente' })
+			.where(eq(imports.id, importId));
+		return { ok: true };
 	}
 };
