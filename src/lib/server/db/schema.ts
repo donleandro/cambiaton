@@ -33,6 +33,13 @@ export const imports = sqliteTable('imports', {
 	origen: text('origen', { enum: ['publico', 'manual'] }).notNull().default('manual')
 });
 
+export const loginAttempts = sqliteTable('login_attempts', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	ip: text('ip').notNull(),
+	fecha: integer('fecha').notNull(), // unix ms
+	success: integer('success', { mode: 'boolean' }).notNull()
+});
+
 export type Sticker = typeof stickers.$inferSelect;
 export type Extra = typeof extras.$inferSelect;
 export type Import = typeof imports.$inferSelect;
