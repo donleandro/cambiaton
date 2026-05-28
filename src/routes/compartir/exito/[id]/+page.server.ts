@@ -38,10 +38,15 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
 
 	const [duenoUser] = await db.select().from(users).where(eq(users.id, imp.toUserId));
 
-	// Mostrar CTA "reclamar cuenta" sólo si el visitante es el propio submitter
-	// y todavía no tiene email asociado.
-	const puedeReclamar = locals.user?.id === submitter.id && !submitter.email;
-	const reclamarHref = `/reclamar?redirect=${encodeURIComponent(`/compartir/exito/${imp.id}?token=${token}`)}`;
+	// El submitter siempre puede reclamar mientras la cuenta no tenga email,
+	// aunque haya perdido la sesión: usa su token (válido porque ya lo verificó
+	// arriba para mostrarle el match) para reautenticarse vía /reclamar.
+	const puedeReclamar = !submitter.email;
+	const redirectTo = `/compartir/exito/${imp.id}?token=${token}`;
+	const reclamarHref =
+		locals.user?.id === submitter.id
+			? `/reclamar?redirect=${encodeURIComponent(redirectTo)}`
+			: `/reclamar?token=${token}&redirect=${encodeURIComponent(redirectTo)}`;
 
 	return {
 		puedeReclamar,

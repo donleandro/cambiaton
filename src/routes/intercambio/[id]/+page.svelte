@@ -69,6 +69,48 @@
 	</header>
 
 	<div class="mx-auto max-w-5xl px-4 py-6">
+		{#if data.importacion.submitterAnon && data.registroLink}
+			<div class="mb-4 rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+				<p class="text-sm font-semibold text-indigo-900">
+					{data.importacion.nombre} todavía no tiene cuenta registrada.
+				</p>
+				<p class="mt-1 text-xs text-indigo-800">
+					Mandale este link (o mostrale el QR) — al abrirlo queda con sesión iniciada en su
+					anonymous user actual y puede agregar email + contraseña sin perder la colección.
+				</p>
+				<details class="mt-3">
+					<summary class="cursor-pointer text-xs font-semibold text-indigo-900 hover:underline">
+						Ver link y QR
+					</summary>
+					<div class="mt-3 grid gap-3 sm:grid-cols-[180px_1fr]">
+						<div class="rounded-md bg-white p-2">{@html data.registroQrSvg}</div>
+						<div class="space-y-2">
+							<input
+								readonly
+								value={data.registroLink}
+								class="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 font-mono text-xs"
+							/>
+							<button
+								type="button"
+								onclick={() => navigator.clipboard.writeText(data.registroLink ?? '')}
+								class="rounded-lg bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-stone-800"
+							>
+								Copiar link
+							</button>
+							<a
+								href={`https://wa.me/?text=${encodeURIComponent(`Hola ${data.importacion.nombre}, abrí este link para guardar tu colección con email + contraseña: ${data.registroLink}`)}`}
+								target="_blank"
+								rel="noopener"
+								class="ml-2 inline-block rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+							>
+								Mandar por WhatsApp
+							</a>
+						</div>
+					</div>
+				</details>
+			</div>
+		{/if}
+
 		{#if form?.ok}
 			<div class="mb-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
 				✓ Intercambio aplicado. {form.dados} dados (−1 repetida) y {form.recibidos} recibidos (marcados como tengo).

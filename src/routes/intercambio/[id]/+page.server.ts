@@ -8,10 +8,11 @@ import {
 	deltaRepetidas
 } from '$lib/server/collection';
 import { eq } from 'drizzle-orm';
+import QRCode from 'qrcode';
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params, locals }) => {
+export const load: PageServerLoad = async ({ params, locals, url }) => {
 	if (!locals.user) throw error(401, 'No autenticado');
 	const importId = Number(params.id);
 	if (!Number.isInteger(importId)) throw error(400, 'Import inválido');
@@ -36,6 +37,20 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 	const enrich = (items: typeof match.doy) =>
 		items.map((it) => ({ ...it, grupo: grupoDe(it.equipo) }));
 
+	// Si el submitter sigue siendo anónimo, generamos un link + QR para que el
+	// receiver se lo pase y pueda registrarse manteniendo su colección.
+	let registroLink: string | null = null;
+	let registroQrSvg: string | null = null;
+	if (!submitter.email) {
+		registroLink = `${url.origin}/reclamar?token=${submitter.token}`;
+		registroQrSvg = await QRCode.toString(registroLink, {
+			type: 'svg',
+			margin: 1,
+			width: 320,
+			color: { dark: '#0c0a09', light: '#ffffff' }
+		});
+	}
+
 	return {
 		importacion: {
 			id: imp.id,
@@ -43,8 +58,11 @@ export const load: PageServerLoad = async ({ params, locals }) => {
 			fecha: imp.fecha,
 			status: imp.status,
 			origen: imp.origen,
-			submitterId: submitter.id
+			submitterId: submitter.id,
+			submitterAnon: !submitter.email
 		},
+		registroLink,
+		registroQrSvg,
 		match: {
 			doy: enrich(match.doy),
 			recibo: enrich(match.recibo),
