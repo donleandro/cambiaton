@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import type { ActionData } from './$types';
+	import type { ActionData, PageData } from './$types';
 
-	let { form }: { form: ActionData } = $props();
+	let { form, data }: { form: ActionData; data: PageData } = $props();
 	let loading = $state(false);
 	let faltantesText = $state(form?.faltantesTexto ?? '');
 	let repetidasText = $state(form?.repetidasTexto ?? '');
@@ -27,10 +27,21 @@
 <div class="min-h-screen bg-stone-50 text-stone-900">
 	<header class="sticky top-0 z-10 border-b border-stone-200 bg-white/95 backdrop-blur">
 		<div class="mx-auto max-w-2xl px-4 py-3">
-			<h1 class="text-lg font-bold tracking-tight">Compartir tu inventario</h1>
-			<p class="text-xs text-stone-500">
-				Pegá tu lista y te calculamos el intercambio. El dueño del álbum lo revisa y aplica.
-			</p>
+			<div class="flex items-start justify-between gap-2">
+				<div>
+					<h1 class="text-lg font-bold tracking-tight">Compartir tu inventario</h1>
+					<p class="text-xs text-stone-500">
+						Pegá tu lista y te calculamos el intercambio. El dueño del álbum lo revisa y aplica.
+					</p>
+				</div>
+				{#if data.user}
+					<a
+						href="/"
+						class="shrink-0 text-xs text-stone-500 hover:text-stone-900"
+						title="Volver a tu catálogo"
+					>← Catálogo</a>
+				{/if}
+			</div>
 		</div>
 	</header>
 
