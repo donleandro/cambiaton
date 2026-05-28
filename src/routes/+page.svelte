@@ -101,9 +101,18 @@
 					<a
 						href="/mi-qr"
 						class="rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-50"
-						title="QR para que otros compartan su lista"
+						title="QR + URL para mostrar en cambiatones"
 					>
-						QR
+						Mi QR
+					</a>
+					<a
+						href="/compartir"
+						target="_blank"
+						rel="noopener"
+						class="rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-50"
+						title="El form que ven los que escanean tu QR (se abre en nueva pestaña)"
+					>
+						Ver /compartir ↗
 					</a>
 				</div>
 				<div class="flex items-center gap-2 text-sm text-stone-600">
