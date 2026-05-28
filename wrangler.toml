@@ -1,0 +1,9 @@
+name = "cambiaton"
+compatibility_date = "2025-05-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".svelte-kit/cloudflare"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "panini-album"
+database_id = "1fd66997-1c13-4706-9dc2-6c55fc71cdfc"

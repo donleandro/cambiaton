@@ -1,42 +1,84 @@
-# sv
+# Cambiatón — Álbum Panini World Cup 2026
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+App para gestionar el álbum Panini Mundial 2026: marcar lo que tenés, ver
+faltantes y repetidas, y proponer intercambios óptimos (cambiatón) con otros
+coleccionistas.
 
-## Creating a project
+- 990 stickers base (`XXX-NN` → equipo + número)
+- 80 extras con variantes Regular/Bronce/Plata/Oro (`EX-NN-V`)
+- Confederaciones CAF, AFC, UEFA, CONMEBOL, CONCACAF, OFC
+- Multi-usuario: cada cuenta lleva su propia colección; el catálogo es global
+- Auth simple email + password; alta automática al compartir lista vía link
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Stack
 
-```sh
-# create a new project
-npx sv create my-app
-```
+- **SvelteKit 2** + Svelte 5 (runes)
+- **Cloudflare Pages** (SSR vía `@sveltejs/adapter-cloudflare`)
+- **D1** (SQLite serverless) + **Drizzle ORM**
+- Tailwind v4
 
-To recreate this project with the same configuration:
+En local: SQLite (`local.db`) con `better-sqlite3` para scripts y dev.
+En producción: D1 inyectada por request, accedida vía `AsyncLocalStorage`
+desde `src/lib/server/db/index.ts`.
 
-```sh
-# recreate this project
-npx sv@0.15.3 create --template minimal --types ts --no-install album
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
-npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
-```
-
-## Building
-
-To create a production version of your app:
+## Dev local
 
 ```sh
-npm run build
+pnpm install
+pnpm db:push        # crea/actualiza local.db a partir del schema
+pnpm db:seed        # carga datos desde Album_Panini_Mundial_2026.xlsx
+pnpm dev
 ```
 
-You can preview the production build with `npm run preview`.
+Variables en `.env` (ver `.env.example`):
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+- `DATABASE_URL=local.db`
+- `APP_PASSWORD_HASH` — hash sha256 de tu password de admin
+- `SESSION_SECRET` — random ≥32 hex chars
+
+## Deploy (Cloudflare Pages)
+
+Build + upload con wrangler:
+
+```sh
+pnpm run build
+pnpm exec wrangler pages deploy .svelte-kit/cloudflare \
+  --project-name=cambiaton --branch=main
+```
+
+Bindings configurados en el proyecto Pages:
+
+- `DB` → D1 `panini-album`
+- secret `SESSION_SECRET`
+- secret `APP_PASSWORD_HASH`
+- `compatibility_flags = ["nodejs_compat"]` (para `AsyncLocalStorage`)
+
+Para regenerar el dump de la sqlite local hacia D1:
+
+```sh
+pnpm exec tsx scripts/dump-to-sql.ts
+pnpm exec wrangler d1 execute panini-album --remote --file=./drizzle/data.sql
+```
+
+## Estructura
+
+```
+src/
+├── lib/server/
+│   ├── auth.ts          # sesiones HMAC + login/registro
+│   ├── collection.ts    # CRUD de colecciones por usuario
+│   ├── matcher.ts       # propone intercambios óptimos
+│   ├── groups.ts        # agregados por equipo/confederación
+│   └── db/
+│       ├── index.ts     # cliente D1 vía Proxy + ALS
+│       └── schema.ts    # tablas drizzle (sqlite-core)
+└── routes/
+    ├── +page.*          # catálogo principal
+    ├── cambiaton/       # matcher de intercambios
+    ├── compartir/       # link público para que otros importen su lista
+    ├── intercambio/     # detalle de un intercambio
+    ├── importar/        # cargar lista propia desde xlsx
+    ├── reportes/        # resumen por equipo
+    ├── mi-qr/           # QR + link de tu colección
+    └── login, registro, logout
+```
