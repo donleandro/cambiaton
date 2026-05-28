@@ -49,5 +49,8 @@
 	"dependencies": {
 		"better-sqlite3": "^12.8.0",
 		"qrcode": "^1.5.4"
+	},
+	"pnpm": {
+		"onlyBuiltDependencies": ["@tailwindcss/oxide", "better-sqlite3"]
 	}
 }
