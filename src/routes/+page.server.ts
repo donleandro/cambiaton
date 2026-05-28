@@ -25,7 +25,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		stickers: enriched,
 		stats: { total: enriched.length, tengo, faltan, repetidasTotal },
 		equipos,
-		confederaciones
+		confederaciones,
+		needsClaim: !locals.user.email
 	};
 };
 

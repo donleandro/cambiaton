@@ -176,6 +176,20 @@
 
 	<div class="mx-auto max-w-6xl px-4 py-4">
 
+		{#if data.needsClaim}
+			<div class="mb-3 flex items-start justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm">
+				<div class="flex-1">
+					<p class="font-semibold text-amber-900">Tu cuenta no tiene email todavía.</p>
+					<p class="text-xs text-amber-800">
+						Agregale email + contraseña para no perder tu colección si cambiás de dispositivo o borrás cookies.
+					</p>
+				</div>
+				<a href="/reclamar" class="shrink-0 rounded-md bg-amber-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-800">
+					Agregar
+				</a>
+			</div>
+		{/if}
+
 		<div class="mb-3 flex flex-wrap gap-3">
 			<div class="flex gap-1 rounded-lg bg-stone-200 p-1 text-sm">
 				{#each ['todos', 'faltantes', 'repetidas'] as f (f)}

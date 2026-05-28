@@ -139,5 +139,13 @@
 				{loading ? 'Calculando…' : 'Calcular intercambio'}
 			</button>
 		</form>
+
+		{#if !data.user}
+			<div class="mt-6 border-t border-stone-200 pt-4 text-center text-sm text-stone-600">
+				<a href="/login" class="font-semibold text-stone-900 hover:underline">Ya tengo cuenta</a>
+				<span class="mx-2 text-stone-400">·</span>
+				<a href="/registro" class="text-stone-700 hover:underline">Crear cuenta</a>
+			</div>
+		{/if}
 	</div>
 </div>

@@ -1,19 +1,22 @@
 import { db } from '$lib/server/db';
 import { stickers, imports, colecciones, users } from '$lib/server/db/schema';
 import { parseInventario } from '$lib/server/matcher';
-import { createAnonymousUser } from '$lib/server/auth';
+import {
+	createAnonymousUser,
+	createSessionCookie,
+	SESSION_COOKIE_NAME,
+	SESSION_MAX_AGE
+} from '$lib/server/auth';
 import { eq } from 'drizzle-orm';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
-	// Para el v1, todos los submits van al admin (user 1). Después podemos
-	// permitir elegir destinatario.
-	return {};
+export const load: PageServerLoad = async ({ locals }) => {
+	return { user: locals.user };
 };
 
 export const actions: Actions = {
-	default: async ({ request }) => {
+	default: async ({ request, cookies, locals }) => {
 		const data = await request.formData();
 		const nombre = String(data.get('nombre') ?? '').trim();
 		const faltantesTexto = String(data.get('faltantes') ?? '');
@@ -90,6 +93,21 @@ export const actions: Actions = {
 				origen: 'publico'
 			})
 			.returning({ id: imports.id });
+
+		// Auto-login del submitter solo si no había sesión previa. Así puede volver
+		// y reclamar su cuenta con email+password sin guardarse el link. Si ya
+		// estaba logueado (admin compartiendo lista de un amigo), no le pisamos la
+		// sesión.
+		if (!locals.user) {
+			const cookie = await createSessionCookie(user.id);
+			cookies.set(SESSION_COOKIE_NAME, cookie, {
+				path: '/',
+				httpOnly: true,
+				sameSite: 'lax',
+				maxAge: SESSION_MAX_AGE,
+				secure: !import.meta.env.DEV
+			});
+		}
 
 		throw redirect(303, `/compartir/exito/${imp.id}?token=${user.token}`);
 	}

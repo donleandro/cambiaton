@@ -29,6 +29,29 @@
 	</header>
 
 	<div class="mx-auto max-w-3xl px-4 py-5">
+		{#if data.puedeReclamar}
+			<div class="mb-4 rounded-lg border border-emerald-300 bg-emerald-50 p-4">
+				<div class="flex items-start gap-3">
+					<div class="flex-1">
+						<p class="text-sm font-bold text-emerald-900">
+							Guardá tu cuenta para no perder esta colección.
+						</p>
+						<p class="mt-1 text-xs text-emerald-800">
+							Quedaste con sesión iniciada en este dispositivo. Agregá un email y una contraseña y
+							vas a poder entrar desde cualquier lado con <code>cambiaton.leandromoreno.com</code> →
+							Entrar.
+						</p>
+					</div>
+					<a
+						href={data.reclamarHref}
+						class="shrink-0 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-800"
+					>
+						Crear cuenta
+					</a>
+				</div>
+			</div>
+		{/if}
+
 		<div class="mb-4 rounded-lg border border-stone-200 bg-white p-3 text-sm text-stone-700">
 			Esto es lo que <strong>el sistema te recomienda</strong> intercambiar con el dueño del álbum.
 			Él revisa la lista y la aplica de su lado cuando se hayan dado las cartas en persona.

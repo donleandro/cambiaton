@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params, url }) => {
+export const load: PageServerLoad = async ({ params, url, locals }) => {
 	const importId = Number(params.id);
 	if (!Number.isInteger(importId)) throw error(400, 'ID inválido');
 
@@ -38,7 +38,14 @@ export const load: PageServerLoad = async ({ params, url }) => {
 
 	const [duenoUser] = await db.select().from(users).where(eq(users.id, imp.toUserId));
 
+	// Mostrar CTA "reclamar cuenta" sólo si el visitante es el propio submitter
+	// y todavía no tiene email asociado.
+	const puedeReclamar = locals.user?.id === submitter.id && !submitter.email;
+	const reclamarHref = `/reclamar?redirect=${encodeURIComponent(`/compartir/exito/${imp.id}?token=${token}`)}`;
+
 	return {
+		puedeReclamar,
+		reclamarHref,
 		importacion: {
 			id: imp.id,
 			nombre: submitter.nombre,
