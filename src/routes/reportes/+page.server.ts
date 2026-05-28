@@ -1,7 +1,7 @@
-import { db } from '$lib/server/db';
-import { stickers } from '$lib/server/db/schema';
+import { getColeccionCompleta } from '$lib/server/collection';
 import { grupoDe, posicionAlbum } from '$lib/server/groups';
 import { exportFiguritas } from '$lib/server/matcher';
+import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 type Bucket = {
@@ -26,20 +26,19 @@ function pct(b: Bucket): number {
 	return b.total === 0 ? 0 : (b.tengo / b.total) * 100;
 }
 
-export const load: PageServerLoad = async () => {
-	const all = await db.select().from(stickers).orderBy(stickers.id);
+export const load: PageServerLoad = async ({ locals }) => {
+	if (!locals.user) throw error(401, 'No autenticado');
+	const all = await getColeccionCompleta(locals.user.id);
 
 	const general = vacio();
 	for (const s of all) add(general, s);
 
-	// Por confederación
 	const confedMap = new Map<string, Bucket>();
 	for (const s of all) {
 		if (!confedMap.has(s.confederacion)) confedMap.set(s.confederacion, vacio());
 		add(confedMap.get(s.confederacion)!, s);
 	}
 
-	// Por equipo
 	const equipoMap = new Map<
 		string,
 		Bucket & {
@@ -83,14 +82,9 @@ export const load: PageServerLoad = async () => {
 	).length;
 	const equiposReales = porEquipo.filter((e) => e.confederacion !== 'Global').length;
 
-	// Estimación de sobres
-	// Sobres en México: ~7 stickers/sobre. La probabilidad de que un sticker dado
-	// sea "nuevo" cuando llevás N% completo es (1 - N%). Sobres esperados ≈
-	// faltantes / (7 * (faltantes/total)).
 	const probNuevo = general.faltan / general.total;
 	const sobresEstimados =
 		probNuevo > 0 ? Math.ceil(general.faltan / (7 * probNuevo)) : 0;
-	// Para comparar contra el cálculo "60% nuevos" del Excel original:
 	const sobresOptimistas =
 		general.faltan > 0 ? Math.ceil(general.faltan / (7 * 0.6)) : 0;
 

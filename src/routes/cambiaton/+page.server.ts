@@ -1,12 +1,11 @@
-import { db } from '$lib/server/db';
-import { stickers } from '$lib/server/db/schema';
+import { getColeccionCompleta, setTengo, deltaRepetidas } from '$lib/server/collection';
 import { grupoDe } from '$lib/server/groups';
-import { inArray, sql } from 'drizzle-orm';
-import { fail } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async () => {
-	const all = await db.select().from(stickers).orderBy(stickers.id);
+export const load: PageServerLoad = async ({ locals }) => {
+	if (!locals.user) throw error(401, 'No autenticado');
+	const all = await getColeccionCompleta(locals.user.id);
 
 	const misFaltantes = all
 		.filter((s) => !s.tengo)
@@ -33,7 +32,8 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	confirmar: async ({ request }) => {
+	confirmar: async ({ request, locals }) => {
+		if (!locals.user) return fail(401, { error: 'No autenticado' });
 		const data = await request.formData();
 		const dados = String(data.get('dados') ?? '')
 			.split(',')
@@ -46,18 +46,13 @@ export const actions: Actions = {
 			return fail(400, { error: 'No seleccionaste nada para intercambiar.' });
 		}
 
-		if (dados.length > 0) {
-			await db
-				.update(stickers)
-				.set({ repetidas: sql`max(0, ${stickers.repetidas} - 1)` })
-				.where(inArray(stickers.id, dados));
+		// DADOS: -1 repetida en mi colección
+		for (const id of dados) {
+			await deltaRepetidas(locals.user.id, id, -1);
 		}
-
-		if (recibidos.length > 0) {
-			await db
-				.update(stickers)
-				.set({ tengo: true })
-				.where(inArray(stickers.id, recibidos));
+		// RECIBIDOS: tengo = true
+		for (const id of recibidos) {
+			await setTengo(locals.user.id, id, true);
 		}
 
 		return { ok: true, dados: dados.length, recibidos: recibidos.length };

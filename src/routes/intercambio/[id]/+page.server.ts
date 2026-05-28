@@ -1,21 +1,37 @@
 import { db } from '$lib/server/db';
-import { stickers, imports } from '$lib/server/db/schema';
+import { imports, users } from '$lib/server/db/schema';
 import { grupoDe } from '$lib/server/groups';
 import { calcularMatch, type InventarioAjeno } from '$lib/server/matcher';
-import { eq, inArray, sql } from 'drizzle-orm';
+import {
+	getColeccionCompleta,
+	setTengo,
+	deltaRepetidas
+} from '$lib/server/collection';
+import { eq } from 'drizzle-orm';
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, locals }) => {
+	if (!locals.user) throw error(401, 'No autenticado');
 	const importId = Number(params.id);
 	if (!Number.isInteger(importId)) throw error(400, 'Import inválido');
 
 	const [imp] = await db.select().from(imports).where(eq(imports.id, importId));
 	if (!imp) throw error(404, 'Import no encontrado');
+	if (imp.toUserId !== locals.user.id) throw error(403, 'No es tu intercambio');
 
-	const all = await db.select().from(stickers);
-	const ajeno = imp.payload as InventarioAjeno;
-	const match = calcularMatch(all, ajeno);
+	const [submitter] = await db.select().from(users).where(eq(users.id, imp.submitterId));
+	if (!submitter) throw error(404, 'Submitter no encontrado');
+
+	const miColeccion = await getColeccionCompleta(locals.user.id);
+	const suColeccion = await getColeccionCompleta(submitter.id);
+
+	const inventarioAjeno: InventarioAjeno = {
+		faltantes: suColeccion.filter((s) => !s.tengo).map((s) => s.id),
+		repetidas: suColeccion.filter((s) => s.repetidas > 0).map((s) => ({ id: s.id, count: s.repetidas }))
+	};
+
+	const match = calcularMatch(miColeccion, inventarioAjeno);
 
 	const enrich = (items: typeof match.doy) =>
 		items.map((it) => ({ ...it, grupo: grupoDe(it.equipo) }));
@@ -23,10 +39,11 @@ export const load: PageServerLoad = async ({ params }) => {
 	return {
 		importacion: {
 			id: imp.id,
-			nombre: imp.nombre,
+			nombre: submitter.nombre,
 			fecha: imp.fecha,
 			status: imp.status,
-			origen: imp.origen
+			origen: imp.origen,
+			submitterId: submitter.id
 		},
 		match: {
 			doy: enrich(match.doy),
@@ -41,45 +58,42 @@ export const load: PageServerLoad = async ({ params }) => {
 };
 
 export const actions: Actions = {
-	confirmar: async ({ request, params }) => {
+	confirmar: async ({ request, params, locals }) => {
+		if (!locals.user) return fail(401);
 		const importId = Number(params.id);
-		if (!Number.isInteger(importId)) return fail(400, { error: 'ID inválido' });
+		if (!Number.isInteger(importId)) return fail(400);
+
+		const [imp] = await db.select().from(imports).where(eq(imports.id, importId));
+		if (!imp || imp.toUserId !== locals.user.id) return fail(403);
 
 		const data = await request.formData();
-		const dadosRaw = String(data.get('dados') ?? '');
-		const recibidosRaw = String(data.get('recibidos') ?? '');
-		const dados = dadosRaw ? dadosRaw.split(',').filter(Boolean) : [];
-		const recibidos = recibidosRaw ? recibidosRaw.split(',').filter(Boolean) : [];
+		const dados = String(data.get('dados') ?? '').split(',').filter(Boolean);
+		const recibidos = String(data.get('recibidos') ?? '').split(',').filter(Boolean);
 
 		if (dados.length === 0 && recibidos.length === 0) {
 			return fail(400, { error: 'Seleccioná al menos un sticker.' });
 		}
 
-		// DADOS: -1 repetidas (cap 0)
-		if (dados.length > 0) {
-			await db
-				.update(stickers)
-				.set({ repetidas: sql`max(0, ${stickers.repetidas} - 1)` })
-				.where(inArray(stickers.id, dados));
+		// DADOS (mis repetidas → del submitter): -1 a mí, +tengo o +1 repetida al submitter
+		for (const id of dados) {
+			await deltaRepetidas(locals.user.id, id, -1);
+			// El submitter ahora tiene este sticker
+			await setTengo(imp.submitterId, id, true);
+		}
+		// RECIBIDOS (sus repetidas → a mí): +tengo a mí, -1 al submitter
+		for (const id of recibidos) {
+			await setTengo(locals.user.id, id, true);
+			await deltaRepetidas(imp.submitterId, id, -1);
 		}
 
-		// RECIBIDOS: tengo=true
-		if (recibidos.length > 0) {
-			await db.update(stickers).set({ tengo: true }).where(inArray(stickers.id, recibidos));
-		}
-
-		// Marcar el import como aplicado para no contarlo más en pendientes
-		await db
-			.update(imports)
-			.set({ status: 'aplicado' })
-			.where(eq(imports.id, importId));
-
+		await db.update(imports).set({ status: 'aplicado' }).where(eq(imports.id, importId));
 		return { ok: true, dados: dados.length, recibidos: recibidos.length };
 	},
 
-	archivar: async ({ params }) => {
+	archivar: async ({ params, locals }) => {
+		if (!locals.user) return fail(401);
 		const importId = Number(params.id);
-		if (!Number.isInteger(importId)) return fail(400, { error: 'ID inválido' });
+		if (!Number.isInteger(importId)) return fail(400);
 		await db
 			.update(imports)
 			.set({ status: 'archivado' })
@@ -87,9 +101,10 @@ export const actions: Actions = {
 		throw redirect(303, '/intercambios');
 	},
 
-	reactivar: async ({ params }) => {
+	reactivar: async ({ params, locals }) => {
+		if (!locals.user) return fail(401);
 		const importId = Number(params.id);
-		if (!Number.isInteger(importId)) return fail(400, { error: 'ID inválido' });
+		if (!Number.isInteger(importId)) return fail(400);
 		await db
 			.update(imports)
 			.set({ status: 'pendiente' })

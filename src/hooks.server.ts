@@ -1,30 +1,35 @@
 import { redirect, type Handle } from '@sveltejs/kit';
-import {
-	authEnabled,
-	verifySessionCookie,
-	SESSION_COOKIE_NAME
-} from '$lib/server/auth';
+import { verifySessionCookie, getUserById, SESSION_COOKIE_NAME } from '$lib/server/auth';
 
-const RUTAS_PUBLICAS = ['/login', '/compartir'];
+const RUTAS_PUBLICAS = ['/login', '/registro', '/reclamar', '/compartir'];
 
 export const handle: Handle = async ({ event, resolve }) => {
-	if (!authEnabled()) {
-		event.locals.authenticated = true;
-		return resolve(event);
+	const cookie = event.cookies.get(SESSION_COOKIE_NAME);
+	const session = await verifySessionCookie(cookie);
+
+	if (session) {
+		const user = await getUserById(session.userId);
+		if (user) {
+			event.locals.user = {
+				id: user.id,
+				nombre: user.nombre,
+				email: user.email,
+				isAdmin: user.isAdmin,
+				token: user.token
+			};
+		}
 	}
 
-	const cookie = event.cookies.get(SESSION_COOKIE_NAME);
-	const ok = await verifySessionCookie(cookie);
-	event.locals.authenticated = ok;
-
 	const esPublica = RUTAS_PUBLICAS.some((p) => event.url.pathname.startsWith(p));
-	if (!ok && !esPublica) {
+	const autenticado = !!event.locals.user;
+
+	if (!autenticado && !esPublica) {
 		const redirectTo = event.url.pathname + event.url.search;
 		throw redirect(303, `/login?redirect=${encodeURIComponent(redirectTo)}`);
 	}
 
-	// Si ya estás logueado y caes en /login, mandate al destino o /
-	if (ok && esPublica) {
+	// Logueado en /login → al destino o /
+	if (autenticado && event.url.pathname === '/login') {
 		const target = event.url.searchParams.get('redirect') ?? '/';
 		throw redirect(303, target);
 	}

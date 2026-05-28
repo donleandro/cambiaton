@@ -1,8 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import {
-	authEnabled,
 	createSessionCookie,
-	verifyPassword,
+	verifyPasswordLogin,
 	SESSION_COOKIE_NAME,
 	SESSION_MAX_AGE
 } from '$lib/server/auth';
@@ -14,7 +13,6 @@ import {
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
-	if (!authEnabled()) throw redirect(303, '/');
 	return {};
 };
 
@@ -25,25 +23,27 @@ export const actions: Actions = {
 		const rate = await chequearRateLimit(ip);
 		if (!rate.permitido) {
 			return fail(429, {
-				error: `Demasiados intentos. Probá de nuevo en ${formateaEspera(rate.bloqueadoPorMs)}.`,
-				bloqueado: true
+				error: `Demasiados intentos. Probá de nuevo en ${formateaEspera(rate.bloqueadoPorMs)}.`
 			});
 		}
 
 		const data = await request.formData();
+		const email = String(data.get('email') ?? '').trim();
 		const password = String(data.get('password') ?? '');
 
-		const ok = await verifyPassword(password);
-		await registrarIntento(ip, ok);
-
-		if (!ok) {
-			// Delay artificial para que un atacante no pueda hacer 1000 req/seg
-			// (aunque el rate limit ya lo detendría antes)
-			await new Promise((r) => setTimeout(r, 400));
-			return fail(401, { error: 'Contraseña incorrecta' });
+		if (!email || !password) {
+			return fail(400, { email, error: 'Email y contraseña son requeridos.' });
 		}
 
-		const cookie = await createSessionCookie();
+		const userId = await verifyPasswordLogin(email, password);
+		await registrarIntento(ip, userId !== null);
+
+		if (userId === null) {
+			await new Promise((r) => setTimeout(r, 400));
+			return fail(401, { email, error: 'Email o contraseña incorrecta.' });
+		}
+
+		const cookie = await createSessionCookie(userId);
 		cookies.set(SESSION_COOKIE_NAME, cookie, {
 			path: '/',
 			httpOnly: true,

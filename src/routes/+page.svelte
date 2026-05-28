@@ -112,7 +112,8 @@
 						· faltan <span class="font-semibold text-rose-600">{data.stats.faltan}</span>
 						· repetidas <span class="font-semibold text-amber-600">{data.stats.repetidasTotal}</span>
 					</span>
-					{#if data.authEnabled}
+					{#if data.user}
+						<span class="text-xs text-stone-500">· {data.user.nombre}</span>
 						<form method="POST" action="/logout">
 							<button
 								type="submit"

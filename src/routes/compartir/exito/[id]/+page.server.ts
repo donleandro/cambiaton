@@ -1,32 +1,56 @@
 import { db } from '$lib/server/db';
-import { stickers, imports } from '$lib/server/db/schema';
+import { imports, users } from '$lib/server/db/schema';
 import { grupoDe } from '$lib/server/groups';
 import { calcularMatch, type InventarioAjeno } from '$lib/server/matcher';
+import { getColeccionCompleta } from '$lib/server/collection';
 import { eq } from 'drizzle-orm';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async ({ params, url }) => {
 	const importId = Number(params.id);
 	if (!Number.isInteger(importId)) throw error(400, 'ID inválido');
 
 	const [imp] = await db.select().from(imports).where(eq(imports.id, importId));
 	if (!imp) throw error(404, 'Envío no encontrado');
 
-	const all = await db.select().from(stickers);
-	const ajeno = imp.payload as InventarioAjeno;
-	const match = calcularMatch(all, ajeno);
+	// Verificar token: solo el submitter puede ver su preview
+	const token = url.searchParams.get('token');
+	const [submitter] = await db.select().from(users).where(eq(users.id, imp.submitterId));
+	if (!submitter || submitter.token !== token) {
+		throw error(403, 'Token inválido');
+	}
+
+	// Match: calcular desde el punto de vista del submitter
+	const miColeccion = await getColeccionCompleta(submitter.id);
+	const dueno = await getColeccionCompleta(imp.toUserId);
+
+	// Construir el inventario del dueño en formato InventarioAjeno
+	const inventarioDueno: InventarioAjeno = {
+		faltantes: dueno.filter((s) => !s.tengo).map((s) => s.id),
+		repetidas: dueno.filter((s) => s.repetidas > 0).map((s) => ({ id: s.id, count: s.repetidas }))
+	};
+
+	const match = calcularMatch(miColeccion, inventarioDueno);
 
 	const enrich = (items: typeof match.doy) =>
 		items.map((it) => ({ ...it, grupo: grupoDe(it.equipo) }));
 
+	const [duenoUser] = await db.select().from(users).where(eq(users.id, imp.toUserId));
+
 	return {
-		importacion: { id: imp.id, nombre: imp.nombre, fecha: imp.fecha, status: imp.status },
+		importacion: {
+			id: imp.id,
+			nombre: submitter.nombre,
+			fecha: imp.fecha,
+			status: imp.status,
+			duenoNombre: duenoUser?.nombre ?? 'el dueño'
+		},
 		match: {
-			// Desde el punto de vista del submitter, lo que YO doy es lo que él RECIBE,
-			// y lo que YO recibo es lo que él DA. Invierto las etiquetas.
-			ellosTeDan: enrich(match.doy),
-			vosLesDas: enrich(match.recibo),
+			// match.doy = lo que YO doy = ellos reciben
+			// match.recibo = lo que YO recibo = ellos dan
+			ellosTeDan: enrich(match.recibo),
+			vosLesDas: enrich(match.doy),
 			balanceado: match.balanceado
 		}
 	};

@@ -1,4 +1,5 @@
 import type { Sticker } from './db/schema';
+import type { StickerConEstado } from './collection';
 
 export type InventarioAjeno = {
 	faltantes: string[];
@@ -184,7 +185,7 @@ export function exportFiguritas(
  *   - "balanceado": min(doy, recibo) — el número de stickers que se intercambian 1:1
  */
 export function calcularMatch(
-	misStickers: Sticker[],
+	misStickers: StickerConEstado[],
 	ajeno: InventarioAjeno
 ): MatchResult {
 	const misRepetidas = new Map<string, Sticker>();

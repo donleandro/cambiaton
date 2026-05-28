@@ -1,8 +1,16 @@
 import { db } from '$lib/server/db';
-import { stickers, imports } from '$lib/server/db/schema';
+import { stickers, imports, colecciones, users } from '$lib/server/db/schema';
 import { parseInventario } from '$lib/server/matcher';
+import { createAnonymousUser } from '$lib/server/auth';
+import { eq } from 'drizzle-orm';
 import { fail, redirect } from '@sveltejs/kit';
-import type { Actions } from './$types';
+import type { Actions, PageServerLoad } from './$types';
+
+export const load: PageServerLoad = async () => {
+	// Para el v1, todos los submits van al admin (user 1). Después podemos
+	// permitir elegir destinatario.
+	return {};
+};
 
 export const actions: Actions = {
 	default: async ({ request }) => {
@@ -33,18 +41,56 @@ export const actions: Actions = {
 			});
 		}
 
-		const [{ id }] = await db
+		// 1. Crear usuario anónimo
+		const user = await createAnonymousUser(nombre);
+
+		// 2. Derivar su colección:
+		//    - Si está en faltantes → tengo=false, repetidas=0 (NO insertamos fila)
+		//    - Si está en repetidas → tengo=true, repetidas=count
+		//    - Cualquier otro sticker del catálogo → tengo=true, repetidas=0
+		const faltantesSet = new Set(faltantesParsed.map((f) => f.id));
+		const repetidasMap = new Map(repetidasParsed.map((r) => [r.id, r.count]));
+
+		const filasColeccion = [];
+		for (const s of catalogo) {
+			if (faltantesSet.has(s.id)) continue; // tengo=false implícito vía LEFT JOIN
+			if (repetidasMap.has(s.id)) {
+				filasColeccion.push({
+					userId: user.id,
+					stickerId: s.id,
+					tengo: true,
+					repetidas: repetidasMap.get(s.id)!
+				});
+			} else {
+				filasColeccion.push({
+					userId: user.id,
+					stickerId: s.id,
+					tengo: true,
+					repetidas: 0
+				});
+			}
+		}
+		if (filasColeccion.length > 0) {
+			// Batch insert
+			for (let i = 0; i < filasColeccion.length; i += 100) {
+				await db.insert(colecciones).values(filasColeccion.slice(i, i + 100));
+			}
+		}
+
+		// 3. Buscar al admin (destinatario por defecto del v1)
+		const [admin] = await db.select({ id: users.id }).from(users).where(eq(users.isAdmin, true)).limit(1);
+		const toUserId = admin?.id ?? 1;
+
+		// 4. Crear el import (proposal de swap)
+		const [imp] = await db
 			.insert(imports)
 			.values({
-				nombre,
-				origen: 'publico',
-				payload: {
-					faltantes: faltantesParsed.map((f) => f.id),
-					repetidas: repetidasParsed
-				}
+				submitterId: user.id,
+				toUserId,
+				origen: 'publico'
 			})
 			.returning({ id: imports.id });
 
-		throw redirect(303, `/compartir/exito/${id}`);
+		throw redirect(303, `/compartir/exito/${imp.id}?token=${user.token}`);
 	}
 };
