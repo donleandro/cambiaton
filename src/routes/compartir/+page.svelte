@@ -31,7 +31,13 @@
 				<div>
 					<h1 class="text-lg font-bold tracking-tight">Compartir tu inventario</h1>
 					<p class="text-xs text-stone-500">
-						Pegá tu lista y te calculamos el intercambio. El dueño del álbum lo revisa y aplica.
+						{#if data.destinatario}
+							Vas a compartir tu lista con
+							<strong class="text-stone-900">{data.destinatario.nombre}</strong>. Te calculamos el
+							intercambio óptimo entre ustedes dos.
+						{:else}
+							Pegá tu lista y te calculamos el intercambio. El dueño del álbum lo revisa y aplica.
+						{/if}
 					</p>
 				</div>
 				{#if data.user}
@@ -46,6 +52,13 @@
 	</header>
 
 	<div class="mx-auto max-w-2xl px-4 py-5">
+		{#if data.tokenInvalido}
+			<div class="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+				El link que abriste no nos llevó a ningún usuario válido. Tu envío va a quedar dirigido al
+				dueño del álbum por defecto.
+			</div>
+		{/if}
+
 		<form
 			method="POST"
 			use:enhance={() => {

@@ -31,8 +31,8 @@
 
 	<div class="mx-auto max-w-2xl px-4 py-6">
 		<p class="mb-4 text-sm text-stone-600">
-			Mostralo en cambiatones. Quien lo escanee con la cámara de su celular abre directamente el
-			form público para compartirte su inventario.
+			Tu link personal. Quien lo escanee y pegue su lista te llega como propuesta de intercambio en
+			<a href="/intercambios" class="font-semibold text-stone-900 underline">Intercambios</a>.
 		</p>
 
 		{#if data.esLocalhost}

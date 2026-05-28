@@ -1,12 +1,14 @@
 import QRCode from 'qrcode';
+import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ url }) => {
-	// url.origin se construye según la URL desde la que entraste:
-	//  - dev local: http://localhost:5173
-	//  - dev LAN:   http://192.168.x.y:5173 (si arrancás dev con --host)
-	//  - prod:      https://tu-app.pages.dev (o tu dominio)
-	const compartirUrl = `${url.origin}/compartir`;
+export const load: PageServerLoad = async ({ url, locals }) => {
+	if (!locals.user) throw error(401, 'No autenticado');
+
+	// El QR lleva el token del receptor en la query: el submitter que escanea
+	// el código entra a /compartir?to=<token>, su lista se asocia automáticamente
+	// como propuesta de intercambio para ESTE usuario (no para el admin global).
+	const compartirUrl = `${url.origin}/compartir?to=${locals.user.token}`;
 
 	const qrSvg = await QRCode.toString(compartirUrl, {
 		type: 'svg',

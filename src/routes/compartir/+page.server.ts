@@ -11,16 +11,45 @@ import { eq } from 'drizzle-orm';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals }) => {
-	return { user: locals.user };
+async function resolverDestinatario(
+	toToken: string | null
+): Promise<{ id: number; nombre: string } | null> {
+	if (toToken) {
+		const [u] = await db
+			.select({ id: users.id, nombre: users.nombre })
+			.from(users)
+			.where(eq(users.token, toToken))
+			.limit(1);
+		if (u) return u;
+	}
+	// Fallback: el admin (envíos directos a la app sin QR específico).
+	const [admin] = await db
+		.select({ id: users.id, nombre: users.nombre })
+		.from(users)
+		.where(eq(users.isAdmin, true))
+		.limit(1);
+	return admin ?? null;
+}
+
+export const load: PageServerLoad = async ({ locals, url }) => {
+	const toToken = url.searchParams.get('to');
+	const destinatario = await resolverDestinatario(toToken);
+	// Si el token llegó pero no resolvió a nadie (link viejo / inválido), avisamos.
+	const tokenInvalido = !!toToken && (!destinatario || destinatario.id === locals.user?.id);
+	return {
+		user: locals.user,
+		destinatario: tokenInvalido ? null : destinatario,
+		tokenInvalido
+	};
 };
 
 export const actions: Actions = {
-	default: async ({ request, cookies, locals }) => {
+	default: async ({ request, cookies, locals, url }) => {
 		const data = await request.formData();
 		const nombre = String(data.get('nombre') ?? '').trim();
 		const faltantesTexto = String(data.get('faltantes') ?? '');
 		const repetidasTexto = String(data.get('repetidas') ?? '');
+		const toToken = url.searchParams.get('to');
 
 		if (!nombre) {
 			return fail(400, {
@@ -91,9 +120,18 @@ export const actions: Actions = {
 			}
 		}
 
-		// 3. Buscar al admin (destinatario por defecto del v1)
-		const [admin] = await db.select({ id: users.id }).from(users).where(eq(users.isAdmin, true)).limit(1);
-		const toUserId = admin?.id ?? 1;
+		// 3. Resolver destinatario: por defecto el admin, pero si vino ?to=<token>
+		//    el envío se asocia automáticamente al dueño de ese QR.
+		const destinatario = await resolverDestinatario(toToken);
+		if (!destinatario || destinatario.id === user.id) {
+			return fail(400, {
+				nombre,
+				faltantesTexto,
+				repetidasTexto,
+				error: 'No pudimos encontrar al destinatario de este envío.'
+			});
+		}
+		const toUserId = destinatario.id;
 
 		// 4. Crear el import (proposal de swap)
 		const [imp] = await db
