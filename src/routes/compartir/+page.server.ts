@@ -74,9 +74,20 @@ export const actions: Actions = {
 			}
 		}
 		if (filasColeccion.length > 0) {
-			// Batch insert
-			for (let i = 0; i < filasColeccion.length; i += 100) {
-				await db.insert(colecciones).values(filasColeccion.slice(i, i + 100));
+			// D1 limita ~100 bound parameters por query. 4 columnas → máx 25 filas/batch.
+			const BATCH = 20;
+			try {
+				for (let i = 0; i < filasColeccion.length; i += BATCH) {
+					await db.insert(colecciones).values(filasColeccion.slice(i, i + BATCH));
+				}
+			} catch (e) {
+				console.error('[compartir] insert colecciones falló:', e);
+				return fail(500, {
+					nombre,
+					faltantesTexto,
+					repetidasTexto,
+					error: 'No pudimos guardar tu colección. ' + (e instanceof Error ? e.message : String(e))
+				});
 			}
 		}
 
