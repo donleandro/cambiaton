@@ -2,7 +2,6 @@
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
 	import { track } from '$lib/client/track';
-	import favicon from '$lib/assets/favicon.svg';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -77,7 +76,17 @@
 			<div class="flex items-center justify-between gap-3">
 				<!-- Logo + brand -->
 				<div class="flex min-w-0 items-center gap-2.5">
-					<img src={favicon} alt="" class="h-9 w-9 shrink-0" />
+					<span
+						class="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-stone-950"
+						aria-hidden="true"
+					>
+						<svg viewBox="0 0 24 24" class="h-5 w-5 text-amber-400" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+							<!-- Top arrow → (head on the right) -->
+							<path d="M6 8h12M15 5l3 3-3 3"/>
+							<!-- Bottom arrow ← (head on the left) -->
+							<path d="M18 16H6M9 13l-3 3 3 3"/>
+						</svg>
+					</span>
 					<div class="min-w-0">
 						<div class="text-base font-black leading-tight tracking-tight text-stone-900 sm:text-lg">
 							Cambiatón

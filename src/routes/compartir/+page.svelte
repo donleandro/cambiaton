@@ -73,7 +73,70 @@
 	</header>
 
 	<div class="mx-auto max-w-2xl px-4 py-5">
-		{#if !data.destinatario || data.aSiMismo}
+		{#if data.tieneDataPropia && data.destinatario && data.user}
+			<!-- Visitor logueado con data: 1-click usando colección actual. -->
+			<div class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+				<div class="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-600">
+					Ya tenés todo cargado
+				</div>
+				<h2 class="mt-1 text-xl font-black text-stone-900">
+					Mandale tu colección actual a <span class="text-amber-700">{data.destinatario.nombre}</span>
+				</h2>
+				<p class="mt-2 text-sm text-stone-600">
+					Vamos a comparar tu álbum actual con el suyo y a quedarle el match óptimo en sus
+					Intercambios. No necesitás pegar ninguna lista.
+				</p>
+
+				<form
+					method="POST"
+					use:enhance={() => {
+						loading = true;
+						return async ({ result, update }) => {
+							await update();
+							loading = false;
+							if (result.type === 'redirect') {
+								track('compartir_submit', {
+									destinatario_id: data.destinatario?.id ?? null,
+									modo: 'actual'
+								});
+							}
+						};
+					}}
+					class="mt-4 space-y-2"
+				>
+					<input type="hidden" name="modo" value="actual" />
+					<button
+						type="submit"
+						disabled={loading}
+						class="w-full rounded-lg bg-stone-900 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-stone-800 disabled:opacity-50"
+					>
+						{loading ? 'Enviando…' : `Mandar mi álbum a ${data.destinatario.nombre}`}
+					</button>
+				</form>
+
+				<details class="mt-4 border-t border-stone-100 pt-3">
+					<summary class="cursor-pointer text-xs font-semibold text-stone-600 hover:text-stone-900">
+						¿Querés cargar una lista distinta? (ej. la de un amigo que te dictó)
+					</summary>
+					<p class="mt-2 text-xs text-stone-500">
+						Esto crea un nuevo submitter anónimo con la lista que pegues — útil si estás
+						compartiendo la lista de alguien que no tiene cuenta. Por defecto, dejá la opción de
+						arriba.
+					</p>
+					<button
+						type="button"
+						onclick={() => {
+							const u = new URL(window.location.href);
+							u.searchParams.set('modo', 'pegar');
+							window.location.href = u.toString();
+						}}
+						class="mt-2 text-xs font-semibold text-stone-900 underline"
+					>
+						Cargar otra lista en su lugar →
+					</button>
+				</details>
+			</div>
+		{:else if !data.destinatario || data.aSiMismo}
 			<!-- Sin destinatario válido: no mostramos el form, mostramos guía. -->
 			<div class="rounded-xl border border-stone-200 bg-white p-5 text-sm text-stone-700 shadow-sm">
 				<h2 class="text-base font-bold text-stone-900">

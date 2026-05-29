@@ -7,7 +7,7 @@ import {
 	SESSION_COOKIE_NAME,
 	SESSION_MAX_AGE
 } from '$lib/server/auth';
-import { eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -27,20 +27,35 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const toToken = url.searchParams.get('to');
 	const porToken = await resolverPorToken(toToken);
 
-	// Reglas:
-	//  - Hay token: el destinatario es el que apunta el token (o inválido).
-	//  - No hay token + estás logueado: el destinatario sos vos (admin cargando
-	//    una lista que alguien te dictó en la calle).
-	//  - No hay token + anónimo: necesitás un link, no hay con quién emparejar.
 	const destinatario = porToken ?? (locals.user ? { id: locals.user.id, nombre: locals.user.nombre } : null);
 	const tokenInvalido = !!toToken && !porToken;
 	const aSiMismo = !!porToken && porToken.id === locals.user?.id;
+
+	// ¿El visitor logueado ya tiene colección cargada? Si la tiene y está
+	// llegando vía QR de OTRO (no aSiMismo), podemos ofrecerle mandar su data
+	// actual en un click — sin re-pegar la lista. El query ?modo=pegar fuerza
+	// el form aunque haya data (para el caso "cargo lista que me dictaron").
+	let tieneDataPropia = false;
+	const forzarPegar = url.searchParams.get('modo') === 'pegar';
+	if (!forzarPegar && locals.user && porToken && !aSiMismo) {
+		const [{ n }] = await db
+			.select({ n: sql<number>`count(*)` })
+			.from(colecciones)
+			.where(
+				and(
+					eq(colecciones.userId, locals.user.id),
+					sql`(${colecciones.tengo} = 1 OR ${colecciones.repetidas} > 0)`
+				)
+			);
+		tieneDataPropia = Number(n) > 0;
+	}
 
 	return {
 		user: locals.user,
 		destinatario,
 		tokenInvalido,
-		aSiMismo
+		aSiMismo,
+		tieneDataPropia
 	};
 };
 
@@ -64,13 +79,13 @@ export const actions: Actions = {
 		}
 
 		const data = await request.formData();
+		const modo = String(data.get('modo') ?? 'pegar');
 		const nombre = String(data.get('nombre') ?? '').trim();
 		const faltantesTexto = String(data.get('faltantes') ?? '');
 		const repetidasTexto = String(data.get('repetidas') ?? '');
 
 		// Si el visitor explícitamente pidió emparejarse consigo mismo vía token,
-		// no tiene sentido. Sin token pero logueado, el destinatario sos vos y
-		// está bien (estás cargando la lista de otra persona).
+		// no tiene sentido.
 		if (porToken && locals.user && porToken.id === locals.user.id) {
 			return fail(400, {
 				nombre,
@@ -78,6 +93,22 @@ export const actions: Actions = {
 				repetidasTexto,
 				error: 'No podés emparejarte con vos mismo. Pedíle el link a otra persona.'
 			});
+		}
+
+		// === MODO "actual": usar la colección que el visitor logueado YA tiene.
+		// Bypaseamos el form y solo creamos el import del usuario actual hacia
+		// el destinatario. Esto es lo que pasa cuando B (registrado, con su
+		// álbum cargado) escanea el QR de A.
+		if (modo === 'actual' && locals.user && porToken && porToken.id !== locals.user.id) {
+			const [imp] = await db
+				.insert(imports)
+				.values({
+					submitterId: locals.user.id,
+					toUserId: destinatario.id,
+					origen: 'publico'
+				})
+				.returning({ id: imports.id });
+			throw redirect(303, `/compartir/exito/${imp.id}?token=${locals.user.token}`);
 		}
 
 		if (!nombre) {
