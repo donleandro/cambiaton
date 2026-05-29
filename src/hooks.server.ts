@@ -7,8 +7,10 @@ const RUTAS_PUBLICAS = ['/login', '/registro', '/reclamar', '/compartir'];
 export const handle: Handle = async ({ event, resolve }) => {
 	// Forzar host canónico. Sólo aplica al `cambiaton.pages.dev` literal — las
 	// preview URLs (xxxxxxxx.cambiaton.pages.dev) y localhost se dejan pasar.
-	const canonical = event.platform?.env.CANONICAL_HOST;
-	if (canonical && event.url.hostname === 'cambiaton.pages.dev') {
+	// Usamos el env si está, con fallback hardcodeado por si Pages no lo expone.
+	const canonical = event.platform?.env.CANONICAL_HOST ?? 'cambiaton.leandromoreno.com';
+	const host = event.url.hostname;
+	if (host === 'cambiaton.pages.dev' && canonical && host !== canonical) {
 		const target = new URL(event.url);
 		target.hostname = canonical;
 		target.port = '';
