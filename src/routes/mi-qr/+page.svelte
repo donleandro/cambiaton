@@ -59,7 +59,7 @@
 				class="block w-full bg-white p-4 transition-colors hover:bg-stone-50"
 				title="Tap para mostrar en pantalla completa"
 			>
-				<div class="mx-auto aspect-square max-w-[320px]">{@html data.qrSvg}</div>
+				<div class="qr-host mx-auto aspect-square max-w-[320px]">{@html data.qrSvg}</div>
 				<div class="mt-2 text-center text-[11px] font-medium text-stone-500">
 					Tap para mostrar pantalla completa
 				</div>
@@ -137,7 +137,17 @@
 			</div>
 			<div class="mt-1 text-3xl font-black text-stone-900">{data.nombre}</div>
 		</div>
-		<div class="mt-6 w-full max-w-[min(85vh,85vw)]">{@html data.qrSvg}</div>
+		<div class="qr-host mt-6 w-full max-w-[min(85vh,85vw)]">{@html data.qrSvg}</div>
 		<div class="mt-6 text-xs text-stone-400">Tap para cerrar</div>
 	</button>
 {/if}
+
+<style>
+	/* qrcode genera el SVG con width/height fijos en pixeles. Forzamos a que
+	   respete el contenedor para que escale con max-w. */
+	:global(.qr-host > svg) {
+		width: 100%;
+		height: auto;
+		display: block;
+	}
+</style>
