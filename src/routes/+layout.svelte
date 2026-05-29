@@ -3,9 +3,16 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { afterNavigate } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { page } from '$app/state';
+	import MobileNav from '$lib/components/MobileNav.svelte';
 	import type { LayoutData } from './$types';
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
+
+	// Rutas donde NO queremos la bottom nav (landings auth + el form de exito
+	// que ya tiene su propio CTA). Todo lo demás logueado la muestra.
+	const SIN_NAV = new Set(['/login', '/registro', '/reclamar']);
+	const mostrarNav = $derived(!!data.user && !SIN_NAV.has(page.url.pathname));
 
 	function gtagSet(): void {
 		const w = window as unknown as { gtag?: (...args: unknown[]) => void };
@@ -46,3 +53,8 @@
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 {@render children()}
+{#if mostrarNav}
+	<MobileNav pendientes={data.pendientes} />
+	<!-- Espaciador para que el contenido scrollee debajo de la bottom nav -->
+	<div class="pb-16 sm:pb-0" aria-hidden="true"></div>
+{/if}
