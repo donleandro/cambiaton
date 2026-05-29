@@ -14,42 +14,57 @@ import type { Actions, PageServerLoad } from './$types';
 async function resolverDestinatario(
 	toToken: string | null
 ): Promise<{ id: number; nombre: string } | null> {
-	if (toToken) {
-		const [u] = await db
-			.select({ id: users.id, nombre: users.nombre })
-			.from(users)
-			.where(eq(users.token, toToken))
-			.limit(1);
-		if (u) return u;
-	}
-	// Fallback: el admin (envíos directos a la app sin QR específico).
-	const [admin] = await db
+	if (!toToken) return null;
+	const [u] = await db
 		.select({ id: users.id, nombre: users.nombre })
 		.from(users)
-		.where(eq(users.isAdmin, true))
+		.where(eq(users.token, toToken))
 		.limit(1);
-	return admin ?? null;
+	return u ?? null;
 }
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const toToken = url.searchParams.get('to');
 	const destinatario = await resolverDestinatario(toToken);
-	// Si el token llegó pero no resolvió a nadie (link viejo / inválido), avisamos.
-	const tokenInvalido = !!toToken && (!destinatario || destinatario.id === locals.user?.id);
+	const tokenInvalido = !!toToken && !destinatario;
+	const aSiMismo = !!destinatario && destinatario.id === locals.user?.id;
 	return {
 		user: locals.user,
-		destinatario: tokenInvalido ? null : destinatario,
-		tokenInvalido
+		destinatario,
+		tokenInvalido,
+		aSiMismo
 	};
 };
 
 export const actions: Actions = {
 	default: async ({ request, cookies, locals, url }) => {
+		const toToken = url.searchParams.get('to');
+
+		// Sin token no hay con quién emparejar. Cortamos acá antes de tocar nada.
+		const destinatario = await resolverDestinatario(toToken);
+		if (!destinatario) {
+			return fail(400, {
+				error: toToken
+					? 'El link es inválido o el destinatario ya no existe. Pedíle al dueño que te mande su link de nuevo.'
+					: 'Este formulario necesita un link personalizado para saber con quién emparejarte.'
+			});
+		}
+
 		const data = await request.formData();
 		const nombre = String(data.get('nombre') ?? '').trim();
 		const faltantesTexto = String(data.get('faltantes') ?? '');
 		const repetidasTexto = String(data.get('repetidas') ?? '');
-		const toToken = url.searchParams.get('to');
+
+		// Si el visitor ya estaba logueado y el destinatario sos vos mismo, no
+		// tiene sentido emparejar.
+		if (locals.user && destinatario.id === locals.user.id) {
+			return fail(400, {
+				nombre,
+				faltantesTexto,
+				repetidasTexto,
+				error: 'No podés emparejarte con vos mismo. Pedíle el link a otra persona.'
+			});
+		}
 
 		if (!nombre) {
 			return fail(400, {
@@ -120,25 +135,12 @@ export const actions: Actions = {
 			}
 		}
 
-		// 3. Resolver destinatario: por defecto el admin, pero si vino ?to=<token>
-		//    el envío se asocia automáticamente al dueño de ese QR.
-		const destinatario = await resolverDestinatario(toToken);
-		if (!destinatario || destinatario.id === user.id) {
-			return fail(400, {
-				nombre,
-				faltantesTexto,
-				repetidasTexto,
-				error: 'No pudimos encontrar al destinatario de este envío.'
-			});
-		}
-		const toUserId = destinatario.id;
-
-		// 4. Crear el import (proposal de swap)
+		// 3. Crear el import (proposal de swap). Destinatario ya resuelto arriba.
 		const [imp] = await db
 			.insert(imports)
 			.values({
 				submitterId: user.id,
-				toUserId,
+				toUserId: destinatario.id,
 				origen: 'publico'
 			})
 			.returning({ id: imports.id });

@@ -31,12 +31,16 @@
 				<div>
 					<h1 class="text-lg font-bold tracking-tight">Compartir tu inventario</h1>
 					<p class="text-xs text-stone-500">
-						{#if data.destinatario}
+						{#if data.destinatario && !data.aSiMismo}
 							Vas a compartir tu lista con
 							<strong class="text-stone-900">{data.destinatario.nombre}</strong>. Te calculamos el
 							intercambio óptimo entre ustedes dos.
+						{:else if data.aSiMismo}
+							Sos vos mismo — pedíle a otro coleccionista que te pase su link.
+						{:else if data.tokenInvalido}
+							Ese link no nos llevó a nadie válido.
 						{:else}
-							Pegá tu lista y te calculamos el intercambio. El dueño del álbum lo revisa y aplica.
+							Necesitás abrir el link personal de un coleccionista para emparejarte con él.
 						{/if}
 					</p>
 				</div>
@@ -52,14 +56,49 @@
 	</header>
 
 	<div class="mx-auto max-w-2xl px-4 py-5">
-		{#if data.tokenInvalido}
-			<div class="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-				El link que abriste no nos llevó a ningún usuario válido. Tu envío va a quedar dirigido al
-				dueño del álbum por defecto.
-			</div>
-		{/if}
+		{#if !data.destinatario || data.aSiMismo}
+			<!-- Sin destinatario válido: no mostramos el form, mostramos guía. -->
+			<div class="rounded-xl border border-stone-200 bg-white p-5 text-sm text-stone-700 shadow-sm">
+				<h2 class="text-base font-bold text-stone-900">
+					{#if data.tokenInvalido}
+						Link inválido o expirado
+					{:else if data.aSiMismo}
+						Sos vos mismo
+					{:else}
+						Necesitás un link personal para emparejarte
+					{/if}
+				</h2>
 
-		<form
+				<p class="mt-2">
+					{#if data.tokenInvalido}
+						El link que abriste apunta a una cuenta que ya no existe. Pedíle a la persona que te
+						pase su link de nuevo.
+					{:else if data.aSiMismo}
+						No podés cambiar contigo mismo. Pedíle el link a otro coleccionista.
+					{:else}
+						La idea es que vos pegues tu lista y nosotros la comparemos contra la colección de la
+						persona que te pasó su link (no contra la app en general). Sin link no sabemos con quién
+						emparejarte.
+					{/if}
+				</p>
+
+				{#if data.user}
+					<div class="mt-4 rounded-lg bg-stone-50 p-3 text-xs">
+						<p class="font-semibold text-stone-900">¿Querés que otros te compartan SU lista a vos?</p>
+						<p class="mt-1 text-stone-600">
+							Generá tu link personal en <a href="/mi-qr" class="font-semibold text-stone-900 underline">/mi-qr</a>
+							y compartíselo por WhatsApp o como QR.
+						</p>
+					</div>
+				{:else}
+					<div class="mt-4 rounded-lg bg-stone-50 p-3 text-xs text-stone-600">
+						¿Ya tenés cuenta? <a href="/login" class="font-semibold text-stone-900 underline">Entrá</a>
+						y generá tu link personal en <a href="/mi-qr" class="font-semibold text-stone-900 underline">/mi-qr</a>.
+					</div>
+				{/if}
+			</div>
+		{:else}
+			<form
 			method="POST"
 			use:enhance={() => {
 				loading = true;
@@ -153,12 +192,13 @@
 			</button>
 		</form>
 
-		{#if !data.user}
-			<div class="mt-6 border-t border-stone-200 pt-4 text-center text-sm text-stone-600">
-				<a href="/login" class="font-semibold text-stone-900 hover:underline">Ya tengo cuenta</a>
-				<span class="mx-2 text-stone-400">·</span>
-				<a href="/registro" class="text-stone-700 hover:underline">Crear cuenta</a>
-			</div>
+			{#if !data.user}
+				<div class="mt-6 border-t border-stone-200 pt-4 text-center text-sm text-stone-600">
+					<a href="/login" class="font-semibold text-stone-900 hover:underline">Ya tengo cuenta</a>
+					<span class="mx-2 text-stone-400">·</span>
+					<a href="/registro" class="text-stone-700 hover:underline">Crear cuenta</a>
+				</div>
+			{/if}
 		{/if}
 	</div>
 </div>
