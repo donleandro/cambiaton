@@ -1,10 +1,23 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { onMount } from 'svelte';
 	import { track } from '$lib/client/track';
+	import { page } from '$app/state';
 	import type { ActionData, PageData } from './$types';
 
 	let { form, data }: { form: ActionData; data: PageData } = $props();
 	let loading = $state(false);
+
+	onMount(() => {
+		// Trackear si llegamos vía QR (link personal). Si no hay ?to=, fue un
+		// acceso directo a /compartir — el page_view normal ya lo cubre.
+		if (page.url.searchParams.has('to')) {
+			track('arrival_via_qr', {
+				destinatario_id: data.destinatario?.id ?? null,
+				token_invalido: !!data.tokenInvalido
+			});
+		}
+	});
 	let faltantesText = $state(form?.faltantesTexto ?? '');
 	let repetidasText = $state(form?.repetidasTexto ?? '');
 	let pegando = $state<'faltantes' | 'repetidas' | null>(null);

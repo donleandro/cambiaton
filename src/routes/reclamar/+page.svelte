@@ -1,10 +1,23 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { onMount } from 'svelte';
 	import { track } from '$lib/client/track';
+	import { page } from '$app/state';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let loading = $state(false);
+
+	onMount(() => {
+		// Trackear si llegamos a reclamar vía link/QR de auto-claim (cuando el
+		// receiver le pasó al submitter un /reclamar?token=...). El token de
+		// servidor ya se consumió y rebotó a /reclamar limpio, pero ese rebote
+		// es el indicador de que vino por la ruta de auto-claim.
+		const ref = document.referrer;
+		if (ref && ref.includes('token=')) {
+			track('arrival_via_qr', { kind: 'reclamar' });
+		}
+	});
 </script>
 
 <svelte:head><title>Reclamar cuenta · Álbum 2026</title></svelte:head>

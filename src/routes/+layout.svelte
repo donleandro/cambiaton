@@ -23,7 +23,10 @@
 			w.gtag('set', { user_id: String(data.user.id) });
 			w.gtag('set', 'user_properties', {
 				is_admin: data.user.isAdmin,
-				tiene_email: !!data.user.email
+				tiene_email: !!data.user.email,
+				pct_bucket: data.stats?.bucket ?? '0',
+				is_completo: data.stats ? data.stats.pct >= 100 : false,
+				tiene_repetidas: (data.stats?.tengo ?? 0) > 0
 			});
 		} else {
 			w.gtag('set', { user_id: undefined });
