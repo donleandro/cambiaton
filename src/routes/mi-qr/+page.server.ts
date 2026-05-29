@@ -19,5 +19,5 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 	const esLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
 
-	return { compartirUrl, qrSvg, esLocalhost };
+	return { compartirUrl, qrSvg, esLocalhost, nombre: locals.user.nombre };
 };
