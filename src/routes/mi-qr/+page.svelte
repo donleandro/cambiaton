@@ -33,13 +33,11 @@
 <svelte:window onkeydown={onKey} />
 
 <div class="min-h-screen bg-stone-50 text-stone-900">
-	<header class="border-b border-stone-200 bg-white">
-		<div class="mx-auto flex max-w-2xl items-center justify-between px-4 py-3">
-			<a href="/" class="text-sm text-stone-600 hover:text-stone-900">← Catálogo</a>
+	<div class="border-b border-stone-200 bg-white">
+		<div class="mx-auto max-w-2xl px-4 py-2 text-center">
 			<h1 class="text-sm font-semibold text-stone-500">Tu QR personal</h1>
-			<div class="w-16"></div>
 		</div>
-	</header>
+	</div>
 
 	<div class="mx-auto max-w-md px-4 py-6">
 		<!-- Tarjeta principal -->

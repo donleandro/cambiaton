@@ -14,7 +14,7 @@
 <svelte:head><title>Tu propuesta de intercambio · Álbum 2026</title></svelte:head>
 
 <div class="min-h-screen bg-stone-50 text-stone-900">
-	<header class="sticky top-0 z-10 border-b border-stone-200 bg-white/95 backdrop-blur">
+	<header class="border-b border-stone-200 bg-white">
 		<div class="mx-auto max-w-3xl px-4 py-3">
 			<div class="flex items-start justify-between gap-2">
 				<div>

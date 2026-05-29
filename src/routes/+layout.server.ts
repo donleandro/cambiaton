@@ -24,18 +24,19 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			.where(and(eq(imports.toUserId, locals.user.id), eq(imports.status, 'pendiente')));
 		pendientes = Number(n);
 
-		// Stats agregados para enviar como user_properties a GA4. Un solo query.
-		const [agg] = await db
-			.select({
-				total: sql<number>`(SELECT count(*) FROM ${stickers})`,
-				tengo: sql<number>`COALESCE(SUM(CASE WHEN ${colecciones.tengo} = 1 THEN 1 ELSE 0 END), 0)`
-			})
+		// Stats agregados para user_properties GA4 — dos queries simples (más
+		// robusto que un solo SQL con subquery, que rompía en D1 vía drizzle).
+		const [{ total }] = await db
+			.select({ total: sql<number>`count(*)` })
+			.from(stickers);
+		const [{ tengo }] = await db
+			.select({ tengo: sql<number>`count(*)` })
 			.from(colecciones)
-			.where(eq(colecciones.userId, locals.user.id));
-		const tengo = Number(agg?.tengo ?? 0);
-		const total = Number(agg?.total ?? 0);
-		const pct = total > 0 ? (tengo / total) * 100 : 0;
-		stats = { tengo, total, pct, bucket: pctBucket(pct) };
+			.where(and(eq(colecciones.userId, locals.user.id), eq(colecciones.tengo, true)));
+		const t = Number(tengo ?? 0);
+		const tot = Number(total ?? 0);
+		const pct = tot > 0 ? (t / tot) * 100 : 0;
+		stats = { tengo: t, total: tot, pct, bucket: pctBucket(pct) };
 	}
 
 	return {

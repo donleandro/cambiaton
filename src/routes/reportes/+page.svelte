@@ -45,14 +45,11 @@
 <svelte:head><title>Reportes · Cambiatón</title></svelte:head>
 
 <div class="min-h-screen bg-stone-50 text-stone-900">
-	<header class="sticky top-0 z-10 border-b border-stone-200 bg-white/95 backdrop-blur">
+	<div class="border-b border-stone-200 bg-white">
 		<div class="mx-auto max-w-5xl px-4 py-3">
-			<div class="flex items-center justify-between">
-				<h1 class="text-lg font-bold tracking-tight">Reportes</h1>
-				<a href="/" class="text-sm text-stone-600 hover:text-stone-900">← Catálogo</a>
-			</div>
+			<h1 class="text-lg font-bold tracking-tight">Reportes</h1>
 		</div>
-	</header>
+	</div>
 
 	<div class="mx-auto max-w-5xl space-y-8 px-4 py-6">
 		<!-- HERO RING -->

@@ -23,11 +23,10 @@
 <svelte:head><title>Intercambios recibidos · Álbum 2026</title></svelte:head>
 
 <div class="min-h-screen bg-stone-50 text-stone-900">
-	<header class="sticky top-0 z-10 border-b border-stone-200 bg-white/95 backdrop-blur">
+	<header class="border-b border-stone-200 bg-white">
 		<div class="mx-auto max-w-4xl px-4 py-3">
 			<div class="flex items-center justify-between">
 				<h1 class="text-lg font-bold tracking-tight">Intercambios recibidos</h1>
-				<a href="/" class="text-sm text-stone-600 hover:text-stone-900">← Catálogo</a>
 			</div>
 			<div class="mt-3 flex gap-1 rounded-lg bg-stone-200 p-1 text-sm">
 				{#each [{ k: 'pendiente', label: `Pendientes (${data.stats.pendientes})` }, { k: 'aplicado', label: `Aplicados (${data.stats.aplicados})` }, { k: 'archivado', label: `Archivados (${data.stats.archivados})` }, { k: 'todos', label: `Todos (${data.stats.total})` }] as opt (opt.k)}

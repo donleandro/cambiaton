@@ -37,7 +37,7 @@
 <svelte:head><title>Intercambio · {data.importacion.nombre}</title></svelte:head>
 
 <div class="min-h-screen bg-stone-50 text-stone-900">
-	<header class="sticky top-0 z-10 border-b border-stone-200 bg-white/95 backdrop-blur">
+	<header class="border-b border-stone-200 bg-white">
 		<div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
 			<div>
 				<div class="flex flex-wrap items-baseline gap-2">
@@ -55,7 +55,7 @@
 				</p>
 			</div>
 			<div class="flex items-center gap-3 text-sm">
-				<a href="/intercambios" class="text-stone-600 hover:text-stone-900">← Recibidos</a>
+				<a href="/intercambios" class="text-stone-600 hover:text-stone-900">Volver a Recibidos</a>
 				<form
 					method="POST"
 					action="?/archivar"
