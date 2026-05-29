@@ -3,6 +3,130 @@
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
+	let generandoImagen = $state(false);
+
+	function svgAvance(): string {
+		const tengo = data.general.tengo;
+		const total = data.general.total;
+		const pct = data.general.pct;
+		const ringR = 280;
+		const ringC = 2 * Math.PI * ringR;
+		const ringOffset = ringC * (1 - pct / 100);
+		const completos = data.general.equiposCompletos;
+		const equiposTotal = data.general.equiposReales;
+
+		return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080">
+  <rect width="1080" height="1080" fill="#0c0a09"/>
+  <defs>
+    <pattern id="dots" x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse">
+      <circle cx="16" cy="16" r="1" fill="#27272a"/>
+    </pattern>
+  </defs>
+  <rect width="1080" height="1080" fill="url(#dots)"/>
+
+  <!-- header -->
+  <g transform="translate(60 70)">
+    <rect width="64" height="64" rx="14" fill="#1c1917"/>
+    <g transform="translate(16 16)" stroke="#fbbf24" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 10h24M22 5l6 5-6 5"/>
+      <path d="M28 22H4M10 17l-6 5 6 5"/>
+    </g>
+    <text x="84" y="40" fill="#fafaf9" font-family="ui-sans-serif,system-ui,sans-serif" font-size="34" font-weight="900">Cambiatón</text>
+    <text x="84" y="60" fill="#a3a3a3" font-family="ui-sans-serif,system-ui,sans-serif" font-size="17" font-weight="500">Mi avance · Álbum Mundial 2026</text>
+  </g>
+
+  <!-- ring chart -->
+  <g transform="translate(540 510)">
+    <circle r="${ringR}" fill="none" stroke="#27272a" stroke-width="44"/>
+    <circle r="${ringR}" fill="none" stroke="#fbbf24" stroke-width="44" stroke-linecap="round" stroke-dasharray="${ringC.toFixed(2)}" stroke-dashoffset="${ringOffset.toFixed(2)}" transform="rotate(-90)"/>
+  </g>
+
+  <!-- center % -->
+  <text x="540" y="470" text-anchor="middle" fill="#fbbf24" font-family="ui-sans-serif,system-ui,sans-serif" font-size="200" font-weight="900" letter-spacing="-8">${pct.toFixed(0)}%</text>
+  <text x="540" y="560" text-anchor="middle" fill="#a3a3a3" font-family="ui-sans-serif,system-ui,sans-serif" font-size="26" font-weight="700" letter-spacing="6">COMPLETO</text>
+
+  <!-- bottom stats -->
+  <g transform="translate(540 850)" text-anchor="middle">
+    <text fill="#fafaf9" font-family="ui-sans-serif,system-ui,sans-serif" font-size="64" font-weight="900">${tengo} / ${total}</text>
+    <text y="48" fill="#a3a3a3" font-family="ui-sans-serif,system-ui,sans-serif" font-size="22" font-weight="500">stickers obtenidos · ${completos}/${equiposTotal} equipos completos</text>
+  </g>
+
+  <!-- url -->
+  <text x="540" y="1020" text-anchor="middle" fill="#525252" font-family="ui-sans-serif,system-ui,sans-serif" font-size="20" font-weight="600">cambiaton.leandromoreno.com</text>
+</svg>`;
+	}
+
+	async function generarBlob(): Promise<Blob> {
+		const svg = svgAvance();
+		const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+		const url = URL.createObjectURL(svgBlob);
+
+		return new Promise((resolve, reject) => {
+			const img = new Image();
+			img.crossOrigin = 'anonymous';
+			img.onload = () => {
+				const canvas = document.createElement('canvas');
+				canvas.width = 1080;
+				canvas.height = 1080;
+				const ctx = canvas.getContext('2d');
+				if (!ctx) {
+					URL.revokeObjectURL(url);
+					reject(new Error('No canvas context'));
+					return;
+				}
+				ctx.drawImage(img, 0, 0, 1080, 1080);
+				URL.revokeObjectURL(url);
+				canvas.toBlob(
+					(blob) => {
+						if (blob) resolve(blob);
+						else reject(new Error('toBlob falló'));
+					},
+					'image/png',
+					0.95
+				);
+			};
+			img.onerror = () => {
+				URL.revokeObjectURL(url);
+				reject(new Error('SVG load failed'));
+			};
+			img.src = url;
+		});
+	}
+
+	async function compartirAvance() {
+		generandoImagen = true;
+		try {
+			const blob = await generarBlob();
+			const file = new File([blob], 'cambiaton-avance.png', { type: 'image/png' });
+			const shareText = `Voy ${data.general.pct.toFixed(0)}% del álbum Panini Mundial 2026 — ${data.general.tengo}/${data.general.total} stickers. https://cambiaton.leandromoreno.com`;
+
+			// @ts-expect-error navigator.canShare es opcional en algunos browsers
+			if (typeof navigator.canShare === 'function' && navigator.canShare({ files: [file] })) {
+				await navigator.share({
+					title: 'Mi avance en Cambiatón',
+					text: shareText,
+					files: [file]
+				});
+				track('share_reporte', { method: 'native' });
+			} else {
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				a.href = url;
+				a.download = 'cambiaton-avance.png';
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+				URL.revokeObjectURL(url);
+				track('share_reporte', { method: 'download' });
+			}
+		} catch (e) {
+			if (e instanceof Error && e.name === 'AbortError') return;
+			alert('No pudimos generar la imagen: ' + (e instanceof Error ? e.message : String(e)));
+		} finally {
+			generandoImagen = false;
+		}
+	}
+</script>
 
 	type Orden = 'album' | 'menos' | 'mas' | 'az';
 	let orden = $state<Orden>('menos');
@@ -140,6 +264,21 @@
 					</div>
 				</div>
 			</div>
+		</section>
+
+		<!-- COMPARTIR AVANCE como imagen -->
+		<section>
+			<button
+				type="button"
+				onclick={compartirAvance}
+				disabled={generandoImagen}
+				class="flex w-full items-center justify-center gap-2 rounded-2xl border border-amber-300 bg-gradient-to-br from-amber-50 to-amber-100/70 px-4 py-4 text-sm font-bold text-amber-900 transition-colors hover:from-amber-100 hover:to-amber-200/70 disabled:opacity-60"
+			>
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-5 w-5" stroke-linecap="round" stroke-linejoin="round">
+					<path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" />
+				</svg>
+				<span>{generandoImagen ? 'Generando imagen…' : 'Compartir mi avance como imagen'}</span>
+			</button>
 		</section>
 
 		<!-- A UN PASO -->
