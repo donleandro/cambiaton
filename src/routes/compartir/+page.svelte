@@ -31,14 +31,17 @@
 				<div>
 					<h1 class="text-lg font-bold tracking-tight">Compartir tu inventario</h1>
 					<p class="text-xs text-stone-500">
-						{#if data.destinatario && !data.aSiMismo}
-							Vas a compartir tu lista con
-							<strong class="text-stone-900">{data.destinatario.nombre}</strong>. Te calculamos el
-							intercambio óptimo entre ustedes dos.
-						{:else if data.aSiMismo}
+						{#if data.aSiMismo}
 							Sos vos mismo — pedíle a otro coleccionista que te pase su link.
 						{:else if data.tokenInvalido}
 							Ese link no nos llevó a nadie válido.
+						{:else if data.destinatario && data.user && data.destinatario.id === data.user.id}
+							Cargá la lista que te dictaron — queda como propuesta de intercambio contra tu
+							colección.
+						{:else if data.destinatario}
+							Vas a compartir tu lista con
+							<strong class="text-stone-900">{data.destinatario.nombre}</strong>. Te calculamos el
+							intercambio óptimo entre ustedes dos.
 						{:else}
 							Necesitás abrir el link personal de un coleccionista para emparejarte con él.
 						{/if}

@@ -11,7 +11,7 @@ import { eq } from 'drizzle-orm';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
-async function resolverDestinatario(
+async function resolverPorToken(
 	toToken: string | null
 ): Promise<{ id: number; nombre: string } | null> {
 	if (!toToken) return null;
@@ -25,9 +25,17 @@ async function resolverDestinatario(
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const toToken = url.searchParams.get('to');
-	const destinatario = await resolverDestinatario(toToken);
-	const tokenInvalido = !!toToken && !destinatario;
-	const aSiMismo = !!destinatario && destinatario.id === locals.user?.id;
+	const porToken = await resolverPorToken(toToken);
+
+	// Reglas:
+	//  - Hay token: el destinatario es el que apunta el token (o inválido).
+	//  - No hay token + estás logueado: el destinatario sos vos (admin cargando
+	//    una lista que alguien te dictó en la calle).
+	//  - No hay token + anónimo: necesitás un link, no hay con quién emparejar.
+	const destinatario = porToken ?? (locals.user ? { id: locals.user.id, nombre: locals.user.nombre } : null);
+	const tokenInvalido = !!toToken && !porToken;
+	const aSiMismo = !!porToken && porToken.id === locals.user?.id;
+
 	return {
 		user: locals.user,
 		destinatario,
@@ -39,9 +47,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 export const actions: Actions = {
 	default: async ({ request, cookies, locals, url }) => {
 		const toToken = url.searchParams.get('to');
+		const porToken = await resolverPorToken(toToken);
 
-		// Sin token no hay con quién emparejar. Cortamos acá antes de tocar nada.
-		const destinatario = await resolverDestinatario(toToken);
+		// Resolver destinatario con las mismas reglas que el load:
+		//   token válido → ese user; sin token + logueado → vos mismo; sin token
+		//   + anónimo → cortamos.
+		const destinatario =
+			porToken ?? (locals.user ? { id: locals.user.id, nombre: locals.user.nombre } : null);
+
 		if (!destinatario) {
 			return fail(400, {
 				error: toToken
@@ -55,9 +68,10 @@ export const actions: Actions = {
 		const faltantesTexto = String(data.get('faltantes') ?? '');
 		const repetidasTexto = String(data.get('repetidas') ?? '');
 
-		// Si el visitor ya estaba logueado y el destinatario sos vos mismo, no
-		// tiene sentido emparejar.
-		if (locals.user && destinatario.id === locals.user.id) {
+		// Si el visitor explícitamente pidió emparejarse consigo mismo vía token,
+		// no tiene sentido. Sin token pero logueado, el destinatario sos vos y
+		// está bien (estás cargando la lista de otra persona).
+		if (porToken && locals.user && porToken.id === locals.user.id) {
 			return fail(400, {
 				nombre,
 				faltantesTexto,
