@@ -54,7 +54,10 @@
 				title="Cargar una lista que te dictaron / ver el form público"
 			>
 				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" stroke-linecap="round" stroke-linejoin="round">
-					<path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z M17 21v-8H7v8M7 3v5h8" />
+					<!-- clipboard con líneas (cargar/pegar lista) -->
+					<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+					<rect x="9" y="3" width="6" height="4" rx="1" />
+					<path d="M9 13h6M9 17h4" />
 				</svg>
 				<span class="hidden sm:inline">Cargar lista</span>
 			</a>

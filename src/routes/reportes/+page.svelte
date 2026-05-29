@@ -5,91 +5,151 @@
 	let { data }: { data: PageData } = $props();
 	let generandoImagen = $state(false);
 
-	function svgAvance(): string {
-		const tengo = data.general.tengo;
-		const total = data.general.total;
-		const pct = data.general.pct;
-		const ringR = 280;
-		const ringC = 2 * Math.PI * ringR;
-		const ringOffset = ringC * (1 - pct / 100);
-		const completos = data.general.equiposCompletos;
-		const equiposTotal = data.general.equiposReales;
-
-		return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1080" width="1080" height="1080">
-  <rect width="1080" height="1080" fill="#0c0a09"/>
-  <defs>
-    <pattern id="dots" x="0" y="0" width="32" height="32" patternUnits="userSpaceOnUse">
-      <circle cx="16" cy="16" r="1" fill="#27272a"/>
-    </pattern>
-  </defs>
-  <rect width="1080" height="1080" fill="url(#dots)"/>
-
-  <!-- header -->
-  <g transform="translate(60 70)">
-    <rect width="64" height="64" rx="14" fill="#1c1917"/>
-    <g transform="translate(16 16)" stroke="#fbbf24" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M4 10h24M22 5l6 5-6 5"/>
-      <path d="M28 22H4M10 17l-6 5 6 5"/>
-    </g>
-    <text x="84" y="40" fill="#fafaf9" font-family="ui-sans-serif,system-ui,sans-serif" font-size="34" font-weight="900">Cambiatón</text>
-    <text x="84" y="60" fill="#a3a3a3" font-family="ui-sans-serif,system-ui,sans-serif" font-size="17" font-weight="500">Mi avance · Álbum Mundial 2026</text>
-  </g>
-
-  <!-- ring chart -->
-  <g transform="translate(540 510)">
-    <circle r="${ringR}" fill="none" stroke="#27272a" stroke-width="44"/>
-    <circle r="${ringR}" fill="none" stroke="#fbbf24" stroke-width="44" stroke-linecap="round" stroke-dasharray="${ringC.toFixed(2)}" stroke-dashoffset="${ringOffset.toFixed(2)}" transform="rotate(-90)"/>
-  </g>
-
-  <!-- center % -->
-  <text x="540" y="470" text-anchor="middle" fill="#fbbf24" font-family="ui-sans-serif,system-ui,sans-serif" font-size="200" font-weight="900" letter-spacing="-8">${pct.toFixed(0)}%</text>
-  <text x="540" y="560" text-anchor="middle" fill="#a3a3a3" font-family="ui-sans-serif,system-ui,sans-serif" font-size="26" font-weight="700" letter-spacing="6">COMPLETO</text>
-
-  <!-- bottom stats -->
-  <g transform="translate(540 850)" text-anchor="middle">
-    <text fill="#fafaf9" font-family="ui-sans-serif,system-ui,sans-serif" font-size="64" font-weight="900">${tengo} / ${total}</text>
-    <text y="48" fill="#a3a3a3" font-family="ui-sans-serif,system-ui,sans-serif" font-size="22" font-weight="500">stickers obtenidos · ${completos}/${equiposTotal} equipos completos</text>
-  </g>
-
-  <!-- url -->
-  <text x="540" y="1020" text-anchor="middle" fill="#525252" font-family="ui-sans-serif,system-ui,sans-serif" font-size="20" font-weight="600">cambiaton.leandromoreno.com</text>
-</svg>`;
+	function roundRect(
+		ctx: CanvasRenderingContext2D,
+		x: number,
+		y: number,
+		w: number,
+		h: number,
+		r: number
+	) {
+		ctx.beginPath();
+		ctx.moveTo(x + r, y);
+		ctx.arcTo(x + w, y, x + w, y + h, r);
+		ctx.arcTo(x + w, y + h, x, y + h, r);
+		ctx.arcTo(x, y + h, x, y, r);
+		ctx.arcTo(x, y, x + w, y, r);
+		ctx.closePath();
 	}
 
 	async function generarBlob(): Promise<Blob> {
-		const svg = svgAvance();
-		const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-		const url = URL.createObjectURL(svgBlob);
+		const tengo = data.general.tengo;
+		const total = data.general.total;
+		const pct = data.general.pct;
+		const completos = data.general.equiposCompletos;
+		const equiposTotal = data.general.equiposReales;
+
+		const canvas = document.createElement('canvas');
+		canvas.width = 1080;
+		canvas.height = 1080;
+		const ctx = canvas.getContext('2d');
+		if (!ctx) throw new Error('No canvas context');
+
+		const FONT = '"Helvetica Neue", Arial, sans-serif';
+
+		// fondo
+		ctx.fillStyle = '#0c0a09';
+		ctx.fillRect(0, 0, 1080, 1080);
+
+		// patrón de puntos
+		ctx.fillStyle = '#27272a';
+		for (let y = 16; y < 1080; y += 32) {
+			for (let x = 16; x < 1080; x += 32) {
+				ctx.beginPath();
+				ctx.arc(x, y, 1.2, 0, Math.PI * 2);
+				ctx.fill();
+			}
+		}
+
+		// header brand box
+		ctx.fillStyle = '#1c1917';
+		roundRect(ctx, 80, 100, 72, 72, 16);
+		ctx.fill();
+
+		// swap arrows en el box (top → right, bottom ← left)
+		ctx.strokeStyle = '#fbbf24';
+		ctx.lineWidth = 4;
+		ctx.lineCap = 'round';
+		ctx.lineJoin = 'round';
+		const ix = 80 + 18;
+		const iy = 100 + 18;
+		ctx.beginPath();
+		ctx.moveTo(ix + 4, iy + 12); // top line
+		ctx.lineTo(ix + 32, iy + 12);
+		ctx.moveTo(ix + 24, iy + 6); // top arrowhead →
+		ctx.lineTo(ix + 32, iy + 12);
+		ctx.lineTo(ix + 24, iy + 18);
+		ctx.moveTo(ix + 32, iy + 24); // bottom line
+		ctx.lineTo(ix + 4, iy + 24);
+		ctx.moveTo(ix + 12, iy + 18); // bottom arrowhead ←
+		ctx.lineTo(ix + 4, iy + 24);
+		ctx.lineTo(ix + 12, iy + 30);
+		ctx.stroke();
+
+		// brand text
+		ctx.fillStyle = '#fafaf9';
+		ctx.font = `900 40px ${FONT}`;
+		ctx.textAlign = 'left';
+		ctx.textBaseline = 'alphabetic';
+		ctx.fillText('Cambiatón', 80 + 92, 100 + 42);
+
+		ctx.fillStyle = '#a3a3a3';
+		ctx.font = `400 20px ${FONT}`;
+		ctx.fillText('Mi avance · Álbum Mundial 2026', 80 + 92, 100 + 68);
+
+		// ring chart
+		const cx = 540;
+		const cy = 530;
+		const r = 280;
+
+		ctx.strokeStyle = '#27272a';
+		ctx.lineWidth = 44;
+		ctx.beginPath();
+		ctx.arc(cx, cy, r, 0, Math.PI * 2);
+		ctx.stroke();
+
+		ctx.strokeStyle = '#fbbf24';
+		ctx.lineCap = 'round';
+		ctx.beginPath();
+		ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + (pct / 100) * 2 * Math.PI);
+		ctx.stroke();
+
+		// % central
+		ctx.fillStyle = '#fbbf24';
+		ctx.font = `900 200px ${FONT}`;
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'middle';
+		ctx.fillText(`${pct.toFixed(0)}%`, cx, cy);
+
+		// "COMPLETO" subtítulo
+		ctx.fillStyle = '#a3a3a3';
+		ctx.font = `700 26px ${FONT}`;
+		ctx.textAlign = 'center';
+		ctx.fillText('C O M P L E T O', cx, cy + 130);
+
+		// stats bottom
+		ctx.fillStyle = '#fafaf9';
+		ctx.font = `900 64px ${FONT}`;
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'alphabetic';
+		ctx.fillText(`${tengo} / ${total}`, 540, 900);
+
+		ctx.fillStyle = '#a3a3a3';
+		ctx.font = `500 22px ${FONT}`;
+		ctx.fillText(
+			`stickers obtenidos · ${completos}/${equiposTotal} equipos completos`,
+			540,
+			950
+		);
+
+		// footer con URL bien visible (formato instagram-friendly)
+		ctx.fillStyle = '#fbbf24';
+		ctx.font = `800 32px ${FONT}`;
+		ctx.fillText('cambiaton.leandromoreno.com', 540, 1015);
+
+		// línea decorativa debajo
+		ctx.fillStyle = '#fbbf24';
+		ctx.fillRect(390, 1035, 300, 3);
 
 		return new Promise((resolve, reject) => {
-			const img = new Image();
-			img.crossOrigin = 'anonymous';
-			img.onload = () => {
-				const canvas = document.createElement('canvas');
-				canvas.width = 1080;
-				canvas.height = 1080;
-				const ctx = canvas.getContext('2d');
-				if (!ctx) {
-					URL.revokeObjectURL(url);
-					reject(new Error('No canvas context'));
-					return;
-				}
-				ctx.drawImage(img, 0, 0, 1080, 1080);
-				URL.revokeObjectURL(url);
-				canvas.toBlob(
-					(blob) => {
-						if (blob) resolve(blob);
-						else reject(new Error('toBlob falló'));
-					},
-					'image/png',
-					0.95
-				);
-			};
-			img.onerror = () => {
-				URL.revokeObjectURL(url);
-				reject(new Error('SVG load failed'));
-			};
-			img.src = url;
+			canvas.toBlob(
+				(blob) => {
+					if (blob) resolve(blob);
+					else reject(new Error('toBlob falló'));
+				},
+				'image/png',
+				0.95
+			);
 		});
 	}
 
@@ -109,14 +169,19 @@
 				});
 				track('share_reporte', { method: 'native' });
 			} else {
+				// Fallback desktop: descarga directa. Diferimos el revoke para que
+				// el browser termine de procesar el download antes de invalidar el URL.
 				const url = URL.createObjectURL(blob);
 				const a = document.createElement('a');
 				a.href = url;
-				a.download = 'cambiaton-avance.png';
+				a.download = `cambiaton-avance-${data.general.pct.toFixed(0)}pct.png`;
+				a.rel = 'noopener';
 				document.body.appendChild(a);
 				a.click();
-				document.body.removeChild(a);
-				URL.revokeObjectURL(url);
+				setTimeout(() => {
+					document.body.removeChild(a);
+					URL.revokeObjectURL(url);
+				}, 1000);
 				track('share_reporte', { method: 'download' });
 			}
 		} catch (e) {
