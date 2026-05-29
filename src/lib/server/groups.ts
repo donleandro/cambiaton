@@ -47,7 +47,7 @@ export const GRUPOS_MUNDIAL_2026: Record<string, Grupo> = {
 	Uruguay: 'H',
 	Francia: 'I',
 	Senegal: 'I',
-	Irak: 'I',
+	Iraq: 'I',
 	Noruega: 'I',
 	Argentina: 'J',
 	Argelia: 'J',
@@ -132,7 +132,7 @@ export const ORDEN_ALBUM: string[] = [
 	// Grupo I
 	'Francia',
 	'Senegal',
-	'Irak',
+	'Iraq',
 	'Noruega',
 	// Grupo J
 	'Argentina',

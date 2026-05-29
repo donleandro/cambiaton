@@ -7,11 +7,12 @@ export type InventarioAjeno = {
 };
 
 /**
- * Alias de códigos: Figuritas / FIFA oficial → nuestros códigos internos.
- * Si seguimos descubriendo diferencias, agregalas acá.
+ * Alias de códigos: variantes en pastes externos → nuestros códigos internos.
+ * El catálogo está alineado con FIFA (IRQ, Iraq); este mapeo soporta listas
+ * viejas que circularon con la convención previa del seed.
  */
 const ALIAS_CODIGO: Record<string, string> = {
-	IRQ: 'IRK' // Irak — FIFA usa IRQ, nuestro seed quedó como IRK
+	IRK: 'IRQ' // listas viejas pre-rename
 };
 
 function normCodigo(code: string): string {
@@ -141,10 +142,10 @@ export function exportFiguritas(
 		if (guion <= 0) continue;
 		const code = s.id.slice(0, guion);
 		const num = Number(s.id.slice(guion + 1));
-		// Revertir alias (IRK interno → IRQ exportado)
-		const codeExport = Object.entries(ALIAS_CODIGO).find(([, v]) => v === code)?.[0] ?? code;
-		if (!grupos.has(codeExport)) grupos.set(codeExport, []);
-		grupos.get(codeExport)!.push(num);
+		// El catálogo ya está en su forma canónica, no hace falta exportar
+		// con otro código.
+		if (!grupos.has(code)) grupos.set(code, []);
+		grupos.get(code)!.push(num);
 	}
 
 	const lineas: string[] = [];
