@@ -19,6 +19,7 @@ declare global {
 				DB: import('@cloudflare/workers-types').D1Database;
 				SESSION_SECRET?: string;
 				APP_PASSWORD_HASH?: string;
+				CANONICAL_HOST?: string;
 			};
 			context: { waitUntil(promise: Promise<unknown>): void };
 			caches: CacheStorage & { default: Cache };

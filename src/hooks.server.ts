@@ -5,6 +5,16 @@ import { runWithD1 } from '$lib/server/db';
 const RUTAS_PUBLICAS = ['/login', '/registro', '/reclamar', '/compartir'];
 
 export const handle: Handle = async ({ event, resolve }) => {
+	// Forzar host canónico. Sólo aplica al `cambiaton.pages.dev` literal — las
+	// preview URLs (xxxxxxxx.cambiaton.pages.dev) y localhost se dejan pasar.
+	const canonical = event.platform?.env.CANONICAL_HOST;
+	if (canonical && event.url.hostname === 'cambiaton.pages.dev') {
+		const target = new URL(event.url);
+		target.hostname = canonical;
+		target.port = '';
+		throw redirect(308, target.toString());
+	}
+
 	const d1 = event.platform?.env.DB;
 	if (!d1) {
 		throw new Error(
