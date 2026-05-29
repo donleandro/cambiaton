@@ -148,7 +148,9 @@ export const ORDEN_ALBUM: string[] = [
 	'Inglaterra',
 	'Croacia',
 	'Ghana',
-	'Panamá'
+	'Panamá',
+	// Patrocinadores (después de los grupos)
+	'Coca-Cola'
 ];
 
 const POSICION_ALBUM = new Map(ORDEN_ALBUM.map((e, i) => [e, i]));
