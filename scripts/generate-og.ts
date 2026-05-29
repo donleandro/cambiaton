@@ -1,0 +1,71 @@
+/**
+ * Genera static/og.png (1200×630) a partir de un SVG inline. Se corre
+ * una sola vez por cambio de diseño:
+ *   pnpm exec tsx scripts/generate-og.ts
+ */
+import sharp from 'sharp';
+import { writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const OUT_PNG = resolve(__dirname, '..', 'static', 'og.png');
+const OUT_SVG = resolve(__dirname, '..', 'static', 'og.svg');
+
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <!-- fondo -->
+  <rect width="1200" height="630" fill="#0c0a09"/>
+
+  <!-- patrón de puntos sutil -->
+  <defs>
+    <pattern id="dots" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+      <circle cx="20" cy="20" r="1.2" fill="#27272a"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#dots)"/>
+
+  <!-- sticker secundario detrás -->
+  <g transform="translate(110 130) rotate(-12)">
+    <rect width="260" height="340" rx="20" fill="#525252"/>
+    <rect width="260" height="60" rx="20" fill="#404040"/>
+    <text x="130" y="42" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-weight="700" font-size="24" fill="#a3a3a3">MEX</text>
+  </g>
+
+  <!-- sticker principal -->
+  <g transform="translate(180 90) rotate(8)">
+    <rect width="280" height="380" rx="24" fill="#fbbf24"/>
+    <rect width="280" height="68" rx="24" fill="#f59e0b"/>
+    <text x="140" y="47" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-weight="800" font-size="26" fill="#0c0a09">FWC 2026</text>
+    <text x="140" y="240" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-weight="900" font-size="170" fill="#0c0a09">26</text>
+    <text x="140" y="340" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-weight="700" font-size="22" fill="#0c0a09">Mascota oficial</text>
+  </g>
+
+  <!-- texto a la derecha -->
+  <g transform="translate(560 220)">
+    <text x="0" y="0" font-family="ui-sans-serif,system-ui,sans-serif" font-weight="900" font-size="92" fill="#fafaf9" letter-spacing="-3">Cambiatón</text>
+    <text x="0" y="60" font-family="ui-sans-serif,system-ui,sans-serif" font-weight="500" font-size="32" fill="#a3a3a3">Tu álbum Panini Mundial 2026</text>
+    <text x="0" y="100" font-family="ui-sans-serif,system-ui,sans-serif" font-weight="500" font-size="32" fill="#a3a3a3">+ matcher de intercambios.</text>
+
+    <!-- pill con stats -->
+    <g transform="translate(0 165)">
+      <rect width="180" height="50" rx="25" fill="#fbbf24"/>
+      <text x="90" y="33" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-weight="800" font-size="22" fill="#0c0a09">980 stickers</text>
+    </g>
+    <g transform="translate(200 165)">
+      <rect width="200" height="50" rx="25" fill="transparent" stroke="#fafaf9" stroke-width="2"/>
+      <text x="100" y="33" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-weight="700" font-size="22" fill="#fafaf9">Match por QR</text>
+    </g>
+  </g>
+
+  <!-- footer -->
+  <text x="600" y="588" text-anchor="middle" font-family="ui-sans-serif,system-ui,sans-serif" font-weight="600" font-size="22" fill="#737373">cambiaton.leandromoreno.com</text>
+</svg>`;
+
+writeFileSync(OUT_SVG, svg, 'utf8');
+
+await sharp(Buffer.from(svg))
+	.resize(1200, 630)
+	.png({ quality: 90 })
+	.toFile(OUT_PNG);
+
+console.log(`wrote ${OUT_PNG} (${(await sharp(OUT_PNG).metadata()).size} bytes)`);
