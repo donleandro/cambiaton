@@ -126,7 +126,6 @@
 			generandoImagen = false;
 		}
 	}
-</script>
 
 	type Orden = 'album' | 'menos' | 'mas' | 'az';
 	let orden = $state<Orden>('menos');
