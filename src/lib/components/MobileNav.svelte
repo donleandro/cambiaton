@@ -23,7 +23,8 @@
 		{
 			href: '/cambiaton',
 			label: 'Cambiatón',
-			icon: 'M16 3l4 4-4 4 M20 7H8m8 14l-4-4 4-4 M4 17h12',
+			// Doble flecha de swap: ↑ derecha + ↓ izquierda
+			icon: 'M4 8h13l-3-3m3 3l-3 3 M20 16H7l3-3m-3 3l3 3',
 			matches: (p) => p.startsWith('/cambiaton')
 		},
 		{

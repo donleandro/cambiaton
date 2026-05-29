@@ -50,13 +50,13 @@
 			<!-- Cargar lista (compartir): para anotar lo que te dictaron / dar QR a otro -->
 			<a
 				href="/compartir"
-				class="hidden items-center gap-1 rounded-lg border border-stone-300 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 xs:flex sm:text-sm"
+				class="flex items-center gap-1 rounded-lg border border-stone-300 bg-white px-2.5 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 sm:px-3 sm:text-sm"
 				title="Cargar una lista que te dictaron / ver el form público"
 			>
 				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-4 w-4" stroke-linecap="round" stroke-linejoin="round">
 					<path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z M17 21v-8H7v8M7 3v5h8" />
 				</svg>
-				<span>Cargar lista</span>
+				<span class="hidden sm:inline">Cargar lista</span>
 			</a>
 
 			<!-- Compartir mi QR (acción principal) -->
