@@ -5,14 +5,15 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import MobileNav from '$lib/components/MobileNav.svelte';
+	import AppHeader from '$lib/components/AppHeader.svelte';
 	import type { LayoutData } from './$types';
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
 
-	// Rutas donde NO queremos la bottom nav (landings auth + el form de exito
-	// que ya tiene su propio CTA). Todo lo demás logueado la muestra.
+	// Rutas con chrome propio (hero panels o headers especiales): no usan el
+	// AppHeader / MobileNav global.
 	const SIN_NAV = new Set(['/login', '/registro', '/reclamar']);
-	const mostrarNav = $derived(!!data.user && !SIN_NAV.has(page.url.pathname));
+	const mostrarChrome = $derived(!!data.user && !SIN_NAV.has(page.url.pathname));
 
 	function gtagSet(): void {
 		const w = window as unknown as { gtag?: (...args: unknown[]) => void };
@@ -55,8 +56,11 @@
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
+{#if mostrarChrome}
+	<AppHeader user={data.user} pendientes={data.pendientes} />
+{/if}
 {@render children()}
-{#if mostrarNav}
+{#if mostrarChrome}
 	<MobileNav pendientes={data.pendientes} />
 	<!-- Espaciador para que el contenido scrollee debajo de la bottom nav -->
 	<div class="pb-16 sm:pb-0" aria-hidden="true"></div>
