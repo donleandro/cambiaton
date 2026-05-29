@@ -1,5 +1,5 @@
 import { getColeccionCompleta } from '$lib/server/collection';
-import { grupoDe, posicionAlbum } from '$lib/server/groups';
+import { grupoDe, posicionAlbum, GRUPOS_MUNDIAL_2026 } from '$lib/server/groups';
 import { exportFiguritas } from '$lib/server/matcher';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
@@ -93,6 +93,49 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const exportFaltantes = exportFiguritas(misFaltantes, 'Me faltan');
 	const exportRepetidas = exportFiguritas(misRepetidas, 'Repetidas');
 
+	// === ACCIONABLE: equipos a un paso de completar ===
+	// Equipos con tengo > 0 y faltan ≤ 3 (excluye los ya completos y los no-tocados).
+	const aUnPaso = porEquipo
+		.filter((e) => e.confederacion !== 'Global' && e.faltan > 0 && e.faltan <= 3 && e.tengo > 0)
+		.sort((a, b) => a.faltan - b.faltan || a.numeroInicio - b.numeroInicio)
+		.slice(0, 8);
+	// Para cada equipo "a un paso", listamos qué números puntuales faltan.
+	const faltantesPorEquipo = new Map<string, { id: string; numero: number }[]>();
+	for (const s of misFaltantes) {
+		if (!faltantesPorEquipo.has(s.equipo)) faltantesPorEquipo.set(s.equipo, []);
+		faltantesPorEquipo.get(s.equipo)!.push({ id: s.id, numero: s.numero });
+	}
+	const aUnPasoEnriquecido = aUnPaso.map((e) => ({
+		...e,
+		stickersFaltan: (faltantesPorEquipo.get(e.nombre) ?? []).sort((a, b) => a.numero - b.numero)
+	}));
+
+	// === POR GRUPO DEL MUNDIAL (A–L) ===
+	const grupoMap = new Map<string, Bucket & { equipos: string[] }>();
+	for (const e of porEquipo) {
+		if (e.confederacion === 'Global') continue;
+		const g = GRUPOS_MUNDIAL_2026[e.nombre];
+		if (!g) continue;
+		if (!grupoMap.has(g)) grupoMap.set(g, { ...vacio(), equipos: [] });
+		const bucket = grupoMap.get(g)!;
+		bucket.total += e.total;
+		bucket.tengo += e.tengo;
+		bucket.faltan += e.faltan;
+		bucket.repetidas += e.repetidas;
+		bucket.equipos.push(e.nombre);
+	}
+	const porGrupo = Array.from(grupoMap, ([letra, b]) => ({
+		letra,
+		...b,
+		pct: pct(b)
+	})).sort((a, b) => a.letra.localeCompare(b.letra));
+
+	// === TOP REPETIDAS PARA CAMBIAR ===
+	const topRepetidas = all
+		.filter((s) => s.repetidas > 0)
+		.sort((a, b) => b.repetidas - a.repetidas || a.numero - b.numero)
+		.slice(0, 12);
+
 	return {
 		general: {
 			...general,
@@ -102,6 +145,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 			sobresEstimados,
 			sobresOptimistas
 		},
+		aUnPaso: aUnPasoEnriquecido,
+		porGrupo,
+		topRepetidas,
 		porConfederacion,
 		porEquipo,
 		exportFaltantes,
