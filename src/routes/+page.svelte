@@ -220,7 +220,10 @@
 			<div class="flex gap-1 rounded-lg bg-stone-200 p-1 text-sm">
 				{#each ['todos', 'faltantes', 'repetidas'] as f (f)}
 					<button
-						onclick={() => (filter = f as Filter)}
+						onclick={() => {
+							filter = f as Filter;
+							track('catalog_filter', { filter: f });
+						}}
 						class="rounded-md px-3 py-1.5 transition-colors {filter === f
 							? 'bg-white font-semibold text-stone-900 shadow-sm'
 							: 'text-stone-600 hover:text-stone-900'}"
@@ -232,7 +235,7 @@
 
 			<div class="flex gap-1 rounded-lg bg-stone-200 p-1 text-sm">
 				<button
-					onclick={() => (sort = 'mundial')}
+					onclick={() => { sort = 'mundial'; track('catalog_sort', { sort: 'mundial' }); }}
 					class="rounded-md px-3 py-1.5 transition-colors {sort === 'mundial'
 						? 'bg-white font-semibold text-stone-900 shadow-sm'
 						: 'text-stone-600 hover:text-stone-900'}"
@@ -240,7 +243,7 @@
 					Orden del Mundial
 				</button>
 				<button
-					onclick={() => (sort = 'az')}
+					onclick={() => { sort = 'az'; track('catalog_sort', { sort: 'az' }); }}
 					class="rounded-md px-3 py-1.5 transition-colors {sort === 'az'
 						? 'bg-white font-semibold text-stone-900 shadow-sm'
 						: 'text-stone-600 hover:text-stone-900'}"

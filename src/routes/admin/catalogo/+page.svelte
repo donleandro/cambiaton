@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { track } from '$lib/client/track';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -72,6 +73,7 @@
 												guardando = null;
 												if (result.type === 'success') {
 													drafts[s.id] = (result.data?.descripcion as string) ?? drafts[s.id];
+													track('admin_update_descripcion', { sticker_id: s.id });
 												}
 											};
 										}}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
+	import { track } from '$lib/client/track';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -25,6 +26,7 @@
 	function elegirInicio(opt: Inicio) {
 		inicio = opt;
 		step = 1;
+		track('cambiaton_inicio', { tipo: opt });
 	}
 
 	let searchFalt = $state('');
@@ -362,7 +364,21 @@
 					{/if}
 				</div>
 
-				<form method="POST" action="?/confirmar" use:enhance class="mt-4">
+				<form
+					method="POST"
+					action="?/confirmar"
+					use:enhance={() => async ({ result, update }) => {
+						await update();
+						if (result.type === 'success') {
+							track('cambiaton_confirmar', {
+								dados: idsDoy.length,
+								recibidos: idsRecibo.length,
+								inicio
+							});
+						}
+					}}
+					class="mt-4"
+				>
 					<input type="hidden" name="dados" value={idsDoy.join(',')} />
 					<input type="hidden" name="recibidos" value={idsRecibo.join(',')} />
 					<button

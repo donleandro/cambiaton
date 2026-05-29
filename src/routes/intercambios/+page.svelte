@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { track } from '$lib/client/track';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -31,7 +32,10 @@
 			<div class="mt-3 flex gap-1 rounded-lg bg-stone-200 p-1 text-sm">
 				{#each [{ k: 'pendiente', label: `Pendientes (${data.stats.pendientes})` }, { k: 'aplicado', label: `Aplicados (${data.stats.aplicados})` }, { k: 'archivado', label: `Archivados (${data.stats.archivados})` }, { k: 'todos', label: `Todos (${data.stats.total})` }] as opt (opt.k)}
 					<button
-						onclick={() => (filtro = opt.k as Filtro)}
+						onclick={() => {
+							filtro = opt.k as Filtro;
+							track('intercambios_filtro', { filtro: opt.k });
+						}}
 						class="flex-1 rounded-md px-3 py-1.5 transition-colors {filtro === opt.k
 							? 'bg-white font-semibold text-stone-900 shadow-sm'
 							: 'text-stone-600 hover:text-stone-900'}"
