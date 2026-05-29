@@ -65,7 +65,7 @@
 
 	const GRUPOS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'];
 
-	const pct = $derived(((data.stats.tengo / data.stats.total) * 100).toFixed(1));
+	const pct = $derived(data.stats.total > 0 ? (data.stats.tengo / data.stats.total) * 100 : 0);
 </script>
 
 <svelte:head><title>Álbum Panini Mundial 2026</title></svelte:head>
