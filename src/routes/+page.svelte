@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
 	import { track } from '$lib/client/track';
+	import favicon from '$lib/assets/favicon.svg';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -73,70 +74,47 @@
 <div class="min-h-screen bg-stone-50 text-stone-900">
 	<header class="sticky top-0 z-10 border-b border-stone-200 bg-white/90 backdrop-blur">
 		<div class="mx-auto max-w-6xl px-4 py-3">
-			<div class="flex flex-wrap items-baseline justify-between gap-2">
-				<div class="flex flex-wrap items-baseline gap-2">
-					<h1 class="text-xl font-bold tracking-tight">Álbum Mundial 2026</h1>
-					<a
-						href="/reportes"
-						class="rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-indigo-700"
-					>
-						Reportes
-					</a>
-					<a
-						href="/cambiaton"
-						class="rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
-					>
-						Cambiatón
-					</a>
-					<a
-						href="/intercambios"
-						class="relative rounded-md bg-stone-900 px-2.5 py-1 text-xs font-semibold text-white hover:bg-stone-800"
-					>
-						Recibidos
-						{#if data.pendientes > 0}
-							<span class="absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
-								{data.pendientes}
-							</span>
-						{/if}
-					</a>
-					<a
-						href="/mi-qr"
-						class="rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-50"
-						title="QR + URL para mostrar en cambiatones"
-					>
-						Mi QR
-					</a>
-					{#if data.user?.isAdmin}
-						<a
-							href="/admin/catalogo"
-							class="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
-							title="Editar descripciones pendientes (solo admin)"
-						>
-							Admin
-						</a>
-					{/if}
-					<a
-						href="/compartir"
-						target="_blank"
-						rel="noopener"
-						class="rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs font-semibold text-stone-700 hover:bg-stone-50"
-						title="El form que ven los que escanean tu QR (se abre en nueva pestaña)"
-					>
-						Ver /compartir ↗
-					</a>
+			<div class="flex items-center justify-between gap-3">
+				<!-- Logo + brand -->
+				<div class="flex min-w-0 items-center gap-2.5">
+					<img src={favicon} alt="" class="h-9 w-9 shrink-0" />
+					<div class="min-w-0">
+						<div class="text-base font-black leading-tight tracking-tight text-stone-900 sm:text-lg">
+							Cambiatón
+						</div>
+						<div class="text-[11px] leading-tight text-stone-500">Álbum Mundial 2026</div>
+					</div>
 				</div>
-				<div class="flex items-center gap-2 text-sm text-stone-600">
-					<span>
-						<span class="font-semibold text-stone-900">{data.stats.tengo}</span> / {data.stats.total}
-						· faltan <span class="font-semibold text-rose-600">{data.stats.faltan}</span>
-						· repetidas <span class="font-semibold text-amber-600">{data.stats.repetidasTotal}</span>
-					</span>
+
+				<!-- Acción principal: Compartir mi álbum -->
+				<a
+					href="/mi-qr"
+					class="flex shrink-0 items-center gap-1.5 rounded-lg bg-amber-400 px-3 py-2 text-sm font-bold text-stone-950 transition-colors hover:bg-amber-300 sm:px-4 sm:py-2.5"
+					title="Tu QR para mostrar en cambiatones"
+				>
+					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="h-4 w-4" stroke-linecap="round" stroke-linejoin="round">
+						<path d="M3 3h6v6H3zM15 3h6v6h-6zM3 15h6v6H3zM15 15h2v2h-2zM19 15h2v2h-2zM15 19h2v2h-2zM19 19h2v2h-2z"/>
+					</svg>
+					<span>Compartir</span>
+				</a>
+			</div>
+
+			<!-- Stats bar (always visible) -->
+			<div class="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-stone-600">
+				<div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+					<span><span class="font-bold text-stone-900">{data.stats.tengo}</span><span class="text-stone-400">/{data.stats.total}</span></span>
+					<span class="text-stone-300">·</span>
+					<span>faltan <span class="font-semibold text-rose-600">{data.stats.faltan}</span></span>
+					<span class="text-stone-300">·</span>
+					<span>repetidas <span class="font-semibold text-amber-700">{data.stats.repetidasTotal}</span></span>
+				</div>
+				<div class="flex items-center gap-2">
 					{#if data.user}
-						<span class="text-xs text-stone-500">· {data.user.nombre}</span>
+						<span class="text-stone-500">{data.user.nombre}</span>
 						<form method="POST" action="/logout">
 							<button
 								type="submit"
-								class="rounded-md border border-stone-300 px-2 py-0.5 text-xs text-stone-600 hover:bg-stone-50"
+								class="rounded-md border border-stone-300 px-2 py-0.5 text-stone-600 hover:bg-stone-50"
 								title="Cerrar sesión"
 							>
 								Salir
@@ -144,6 +122,51 @@
 						</form>
 					{/if}
 				</div>
+			</div>
+
+			<!-- Desktop-only nav (mobile uses bottom nav) -->
+			<div class="mt-3 hidden flex-wrap items-baseline gap-2 sm:flex">
+				<a
+					href="/reportes"
+					class="rounded-md bg-stone-900 px-2.5 py-1 text-xs font-semibold text-white hover:bg-stone-800"
+				>
+					Reportes
+				</a>
+				<a
+					href="/cambiaton"
+					class="rounded-md bg-stone-900 px-2.5 py-1 text-xs font-semibold text-white hover:bg-stone-800"
+				>
+					Cambiatón
+				</a>
+				<a
+					href="/intercambios"
+					class="relative rounded-md bg-stone-900 px-2.5 py-1 text-xs font-semibold text-white hover:bg-stone-800"
+				>
+					Recibidos
+					{#if data.pendientes > 0}
+						<span class="absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+							{data.pendientes}
+						</span>
+					{/if}
+				</a>
+				{#if data.user?.isAdmin}
+					<a
+						href="/admin/catalogo"
+						class="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+						title="Editar descripciones pendientes (solo admin)"
+					>
+						Admin
+					</a>
+				{/if}
+				<a
+					href="/compartir"
+					target="_blank"
+					rel="noopener"
+					class="ml-auto rounded-md border border-stone-300 bg-white px-2.5 py-1 text-xs text-stone-500 hover:bg-stone-50"
+					title="Ver el form público que ven los que escanean tu QR (se abre en nueva pestaña)"
+				>
+					Ver el form público ↗
+				</a>
 			</div>
 			<div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-stone-200">
 				<div
