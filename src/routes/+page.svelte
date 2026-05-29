@@ -106,6 +106,15 @@
 					>
 						Mi QR
 					</a>
+					{#if data.user?.isAdmin}
+						<a
+							href="/admin/catalogo"
+							class="rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+							title="Editar descripciones pendientes (solo admin)"
+						>
+							Admin
+						</a>
+					{/if}
 					<a
 						href="/compartir"
 						target="_blank"
