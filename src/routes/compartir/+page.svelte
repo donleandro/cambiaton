@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { track } from '$lib/client/track';
 	import type { ActionData, PageData } from './$types';
 
 	let { form, data }: { form: ActionData; data: PageData } = $props();
@@ -105,9 +106,15 @@
 			method="POST"
 			use:enhance={() => {
 				loading = true;
-				return async ({ update }) => {
+				return async ({ result, update }) => {
 					await update();
 					loading = false;
+					if (result.type === 'redirect') {
+						track('compartir_submit', {
+							destinatario_id: data.destinatario?.id ?? null,
+							has_token: typeof window !== 'undefined' ? new URL(window.location.href).searchParams.has('to') : false
+						});
+					}
 				};
 			}}
 			class="space-y-4"

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { track } from '$lib/client/track';
 	import type { ActionData } from './$types';
 
 	let { form }: { form: ActionData } = $props();
@@ -21,9 +22,10 @@
 			class="mt-5 space-y-3"
 			use:enhance={() => {
 				loading = true;
-				return async ({ update }) => {
+				return async ({ result, update }) => {
 					await update();
 					loading = false;
+					if (result.type === 'redirect') track('sign_up', { method: 'password' });
 				};
 			}}
 		>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { track } from '$lib/client/track';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -8,6 +9,7 @@
 		try {
 			await navigator.clipboard.writeText(data.compartirUrl);
 			copiado = true;
+			track('share_mi_qr', { method: 'copy' });
 			setTimeout(() => (copiado = false), 2000);
 		} catch {
 			alert('No se pudo copiar. Seleccioná manualmente.');
@@ -68,6 +70,7 @@
 			href="https://wa.me/?text={waText}"
 			target="_blank"
 			rel="noopener"
+			onclick={() => track('share_mi_qr', { method: 'whatsapp' })}
 			class="block w-full rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-center text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
 		>
 			Compartir link por WhatsApp

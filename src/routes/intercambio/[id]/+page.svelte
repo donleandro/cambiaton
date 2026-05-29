@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { track } from '$lib/client/track';
 	import type { ActionData, PageData } from './$types';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
@@ -55,7 +56,14 @@
 			</div>
 			<div class="flex items-center gap-3 text-sm">
 				<a href="/intercambios" class="text-stone-600 hover:text-stone-900">← Recibidos</a>
-				<form method="POST" action="?/archivar" use:enhance>
+				<form
+					method="POST"
+					action="?/archivar"
+					use:enhance={() => async ({ result, update }) => {
+						await update();
+						if (result.type === 'redirect') track('archivar_intercambio', { import_id: data.importacion.id });
+					}}
+				>
 					<button
 						type="submit"
 						class="rounded-md border border-stone-300 bg-white px-2 py-1 text-xs text-stone-700 hover:bg-stone-50"
@@ -92,7 +100,10 @@
 							/>
 							<button
 								type="button"
-								onclick={() => navigator.clipboard.writeText(data.registroLink ?? '')}
+								onclick={() => {
+								navigator.clipboard.writeText(data.registroLink ?? '');
+								track('share_registro_link', { source: 'intercambio', method: 'copy' });
+							}}
 								class="rounded-lg bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-stone-800"
 							>
 								Copiar link
@@ -101,6 +112,7 @@
 								href={`https://wa.me/?text=${encodeURIComponent(`Hola ${data.importacion.nombre}, abrí este link para guardar tu colección con email + contraseña: ${data.registroLink}`)}`}
 								target="_blank"
 								rel="noopener"
+								onclick={() => track('share_registro_link', { source: 'intercambio', method: 'whatsapp' })}
 								class="ml-2 inline-block rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
 							>
 								Mandar por WhatsApp
@@ -130,7 +142,16 @@
 			<form
 				method="POST"
 				action="?/confirmar"
-				use:enhance
+				use:enhance={() => async ({ result, update }) => {
+					await update();
+					if (result.type === 'success') {
+						track('aplicar_intercambio', {
+							import_id: data.importacion.id,
+							dados: idsDoy.length,
+							recibidos: idsRecibo.length
+						});
+					}
+				}}
 				class="space-y-6"
 			>
 				<input type="hidden" name="dados" value={idsDoy.join(',')} />

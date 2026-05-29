@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
+	import { track } from '$lib/client/track';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -260,7 +261,14 @@
 										<div class="font-mono text-sm font-bold text-stone-900">{s.id}</div>
 										<div class="text-xs text-stone-500">#{s.numero}</div>
 									</div>
-									<form method="POST" action="?/toggleTengo" use:enhance>
+									<form
+										method="POST"
+										action="?/toggleTengo"
+										use:enhance={() => async ({ result, update }) => {
+											await update();
+											if (result.type === 'success') track('tengo_toggle', { sticker_id: s.id, to: !s.tengo });
+										}}
+									>
 										<input type="hidden" name="id" value={s.id} />
 										<input type="hidden" name="tengo" value={(!s.tengo).toString()} />
 										<button
@@ -281,7 +289,14 @@
 										: 'pointer-events-none opacity-40'}"
 									title={s.tengo ? '' : 'Primero marcalo como obtenido (✓) para registrar repetidas'}
 								>
-									<form method="POST" action="?/changeRepetidas" use:enhance>
+									<form
+										method="POST"
+										action="?/changeRepetidas"
+										use:enhance={() => async ({ result, update }) => {
+											await update();
+											if (result.type === 'success') track('repetidas_delta', { sticker_id: s.id, delta: -1 });
+										}}
+									>
 										<input type="hidden" name="id" value={s.id} />
 										<input type="hidden" name="delta" value="-1" />
 										<button
@@ -299,7 +314,14 @@
 									>
 										{s.repetidas}
 									</span>
-									<form method="POST" action="?/changeRepetidas" use:enhance>
+									<form
+										method="POST"
+										action="?/changeRepetidas"
+										use:enhance={() => async ({ result, update }) => {
+											await update();
+											if (result.type === 'success') track('repetidas_delta', { sticker_id: s.id, delta: 1 });
+										}}
+									>
 										<input type="hidden" name="id" value={s.id} />
 										<input type="hidden" name="delta" value="1" />
 										<button
