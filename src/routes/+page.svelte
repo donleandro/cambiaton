@@ -177,7 +177,23 @@
 
 	<div class="mx-auto max-w-6xl px-4 py-4">
 
-		{#if data.needsClaim}
+		{#if data.coleccionVacia}
+			<div class="mb-3 flex items-start justify-between gap-3 rounded-lg border border-amber-300 bg-gradient-to-br from-amber-50 to-amber-100/60 p-3 text-sm">
+				<div class="flex-1">
+					<p class="font-semibold text-amber-900">¿Ya usás Figuritas? Importá tu lista.</p>
+					<p class="text-xs text-amber-800">
+						Pegá tus faltantes y repetidas que ya tenés en esa app y te calculamos tu álbum en
+						3 segundos. Más rápido que marcar 980 stickers a mano.
+					</p>
+				</div>
+				<a
+					href="/importar"
+					class="shrink-0 rounded-md bg-amber-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-800"
+				>
+					Importar
+				</a>
+			</div>
+		{:else if data.needsClaim}
 			<div class="mb-3 flex items-start justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm">
 				<div class="flex-1">
 					<p class="font-semibold text-amber-900">Tu cuenta no tiene email todavía.</p>

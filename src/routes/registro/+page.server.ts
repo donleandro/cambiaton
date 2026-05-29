@@ -39,6 +39,9 @@ export const actions: Actions = {
 			secure: !import.meta.env.DEV
 		});
 
-		throw redirect(303, url.searchParams.get('redirect') ?? '/');
+		// Después de crear cuenta vacía mandamos al onboarding /importar para que
+		// la persona pegue su lista de Figuritas. Si vino con ?redirect= (caso
+		// raro: ya tenía URL específica esperándolo), respetamos ese destino.
+		throw redirect(303, url.searchParams.get('redirect') ?? '/importar');
 	}
 };

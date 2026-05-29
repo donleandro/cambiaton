@@ -172,7 +172,7 @@
 									{/if}
 								</div>
 								<div class="mt-0.5 font-mono text-[11px] text-stone-600">
-									Faltan #{e.stickersFaltan.map((s) => s.numero).join(', #')}
+									Faltan {e.stickersFaltan.map((s) => s.id).join(', ')}
 								</div>
 							</div>
 							<svg class="h-4 w-4 text-stone-400 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>

@@ -26,7 +26,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		stats: { total: enriched.length, tengo, faltan, repetidasTotal },
 		equipos,
 		confederaciones,
-		needsClaim: !locals.user.email
+		needsClaim: !locals.user.email,
+		coleccionVacia: tengo === 0 && repetidasTotal === 0
 	};
 };
 

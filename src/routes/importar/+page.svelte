@@ -1,89 +1,167 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import type { ActionData } from './$types';
+	import { track } from '$lib/client/track';
+	import type { ActionData, PageData } from './$types';
 
-	let { form }: { form: ActionData } = $props();
+	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let loading = $state(false);
+	let faltantesText = $state(form?.faltantesTexto ?? '');
+	let repetidasText = $state(form?.repetidasTexto ?? '');
+	let reemplazar = $state(!data.tieneData);
+	let pegando = $state<'faltantes' | 'repetidas' | null>(null);
+
+	async function pegarDelPortapapeles(destino: 'faltantes' | 'repetidas') {
+		pegando = destino;
+		try {
+			const texto = await navigator.clipboard.readText();
+			if (destino === 'faltantes') faltantesText = texto;
+			else repetidasText = texto;
+		} catch {
+			alert('No se pudo leer el portapapeles. Pegá manualmente con tap largo → Pegar.');
+		} finally {
+			pegando = null;
+		}
+	}
 </script>
 
-<svelte:head><title>Importar inventario · Álbum 2026</title></svelte:head>
+<svelte:head><title>Importar mi lista · Cambiatón</title></svelte:head>
 
 <div class="min-h-screen bg-stone-50 text-stone-900">
-	<header class="sticky top-0 z-10 border-b border-stone-200 bg-white/95 backdrop-blur">
+	<header class="border-b border-stone-200 bg-white">
 		<div class="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-			<h1 class="text-xl font-bold tracking-tight">Importar inventario ajeno</h1>
-			<a href="/" class="text-sm text-stone-600 hover:text-stone-900">← Volver al catálogo</a>
+			<h1 class="text-lg font-bold tracking-tight">Importar mi lista</h1>
+			<a href="/" class="text-sm text-stone-600 hover:text-stone-900">
+				{data.tieneData ? '← Catálogo' : 'Empezar vacío →'}
+			</a>
 		</div>
 	</header>
 
 	<div class="mx-auto max-w-3xl px-4 py-6">
-		<p class="mb-6 text-sm text-stone-600">
-			Pegá lo que la otra persona <strong>te pasó</strong>: sus faltantes (qué le falta) y sus
-			repetidas (qué tiene de sobra). Calculamos el intercambio óptimo.
-		</p>
+		<!-- Explainer -->
+		<div class="mb-6 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
+			<div class="bg-stone-950 px-5 py-4 text-stone-100">
+				<div class="text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-400">
+					{data.tieneData ? 'Actualizar colección' : 'Onboarding'}
+				</div>
+				<h2 class="mt-1 text-2xl font-black">
+					{#if data.tieneData}
+						Pisá tu colección desde Figuritas
+					{:else}
+						Empezá fuerte: pegá tu lista de Figuritas
+					{/if}
+				</h2>
+				<p class="mt-1 text-sm text-stone-300">
+					En la app Figuritas: <span class="text-amber-300">Compartir → Faltantes</span> y
+					<span class="text-amber-300">Compartir → Repetidas</span>. Pegá las dos listas acá y te
+					calculamos tu álbum completo.
+				</p>
+			</div>
+
+			{#if data.tieneData}
+				<div class="border-b border-amber-200 bg-amber-50 px-5 py-3 text-xs text-amber-900">
+					⚠ Ya tenés <strong>{data.tengo} stickers marcados</strong> y <strong>{data.repetidas} repetidas</strong>.
+					Si dejás la opción "reemplazar todo" abajo, esto sobrescribe tu colección actual.
+				</div>
+			{/if}
+		</div>
 
 		<form
 			method="POST"
 			use:enhance={() => {
 				loading = true;
-				return async ({ update }) => {
+				return async ({ result, update }) => {
 					await update();
 					loading = false;
+					if (result.type === 'redirect') track('importar_figuritas', { reemplazar });
 				};
 			}}
-			class="space-y-5"
+			class="space-y-4"
 		>
-			<div>
-				<label for="nombre" class="mb-1 block text-sm font-medium">Nombre o referencia</label>
+			<!-- FALTANTES -->
+			<div class="overflow-hidden rounded-xl border border-rose-200 bg-white">
+				<div class="flex items-center justify-between border-b border-rose-100 bg-rose-50 px-3 py-2">
+					<label for="faltantes" class="text-sm font-semibold text-rose-700">
+						Tus faltantes
+						<span class="text-xs font-normal text-rose-600/70">(lo que te falta)</span>
+					</label>
+					<button
+						type="button"
+						onclick={() => pegarDelPortapapeles('faltantes')}
+						disabled={pegando !== null}
+						class="rounded-md border border-rose-300 bg-white px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+					>
+						{pegando === 'faltantes' ? '…' : '📋 Pegar'}
+					</button>
+				</div>
+				<textarea
+					id="faltantes"
+					name="faltantes"
+					rows="10"
+					bind:value={faltantesText}
+					placeholder={`Pegá lo que copiaste de Figuritas → Compartir faltantes. Ej:\n\nFiguritas App - Lista\nMe faltan\nFWC 🏆: 2, 3, 4\nMEX 🇲🇽: 4, 5, 6, 7\nARG 🇦🇷: 13, 14`}
+					class="w-full resize-y border-0 bg-white px-3 py-3 font-mono text-xs focus:outline-none"
+				></textarea>
+			</div>
+
+			<!-- REPETIDAS -->
+			<div class="overflow-hidden rounded-xl border border-amber-200 bg-white">
+				<div class="flex items-center justify-between border-b border-amber-100 bg-amber-50 px-3 py-2">
+					<label for="repetidas" class="text-sm font-semibold text-amber-700">
+						Tus repetidas
+						<span class="text-xs font-normal text-amber-600/70">(lo que te sobra)</span>
+					</label>
+					<button
+						type="button"
+						onclick={() => pegarDelPortapapeles('repetidas')}
+						disabled={pegando !== null}
+						class="rounded-md border border-amber-300 bg-white px-2 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-50"
+					>
+						{pegando === 'repetidas' ? '…' : '📋 Pegar'}
+					</button>
+				</div>
+				<textarea
+					id="repetidas"
+					name="repetidas"
+					rows="10"
+					bind:value={repetidasText}
+					placeholder={`Pegá lo que copiaste de Figuritas → Compartir repetidas. Ej:\n\nFiguritas App - Lista\nRepetidas\nESP 🇪🇸: 8, 12\nBRA-15 x2`}
+					class="w-full resize-y border-0 bg-white px-3 py-3 font-mono text-xs focus:outline-none"
+				></textarea>
+			</div>
+
+			<!-- REEMPLAZAR -->
+			<label
+				class="flex cursor-pointer items-start gap-3 rounded-xl border bg-white p-3 transition-colors {reemplazar
+					? 'border-amber-400 bg-amber-50/40'
+					: 'border-stone-200'}"
+			>
 				<input
-					id="nombre"
-					name="nombre"
-					placeholder="Juan (vecino) · 25-may"
-					value={form?.nombre ?? ''}
-					class="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
+					type="checkbox"
+					name="reemplazar"
+					value="1"
+					bind:checked={reemplazar}
+					class="mt-0.5 h-4 w-4 accent-amber-500"
 				/>
-			</div>
-
-			<div class="grid gap-4 md:grid-cols-2">
-				<div>
-					<label for="faltantes" class="mb-1 block text-sm font-medium">
-						Sus faltantes
-						<span class="font-normal text-stone-500">(que YO podría darle)</span>
-					</label>
-					<textarea
-						id="faltantes"
-						name="faltantes"
-						rows="14"
-						placeholder={`Pegá una lista, ej:\nGER-05\nARG-10\n253\nBRA-07 x2`}
-						value={form?.faltantesTexto ?? ''}
-						class="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 font-mono text-xs focus:border-stone-500 focus:outline-none"
-					></textarea>
+				<div class="flex-1 text-sm">
+					<div class="font-semibold text-stone-900">Reemplazar todo</div>
+					<div class="mt-0.5 text-xs text-stone-600">
+						Sticker que no aparece en ninguna lista → asumimos que <strong>lo tenés</strong>. Esto
+						es lo que la app Figuritas espera: vos compartís lo que falta y lo que sobra, lo demás
+						es implícito.
+					</div>
+					{#if !reemplazar && data.tieneData}
+						<div class="mt-1 text-xs text-stone-500">
+							Sin esta opción, sólo actualizamos las filas que aparecen en tus listas y dejamos el
+							resto como estaba.
+						</div>
+					{/if}
 				</div>
+			</label>
 
-				<div>
-					<label for="repetidas" class="mb-1 block text-sm font-medium">
-						Sus repetidas
-						<span class="font-normal text-stone-500">(que ÉL podría darme)</span>
-					</label>
-					<textarea
-						id="repetidas"
-						name="repetidas"
-						rows="14"
-						placeholder={`Pegá una lista, ej:\nMEX-15\nESP-08 x3\n482`}
-						value={form?.repetidasTexto ?? ''}
-						class="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 font-mono text-xs focus:border-stone-500 focus:outline-none"
-					></textarea>
-				</div>
-			</div>
-
-			<div class="rounded-md bg-stone-100 p-3 text-xs text-stone-600 leading-relaxed">
-				<strong>Formatos aceptados (podés mezclar):</strong><br />
-				• <strong>Figuritas</strong>: pegá tal cual lo que te pasen, ej.
-				<code class="font-mono">MEX 🇲🇽: 4, 5, 6</code> o
-				<code class="font-mono">FWC 🏆: 2, 3, 4</code>. Headers, emojis y URLs se ignoran.<br />
-				• <strong>IDs sueltos</strong>: <code class="font-mono">GER-01</code> uno por línea, opcional
-				<code class="font-mono">x2</code> o <code class="font-mono">(2)</code> para cantidades.<br />
-				• <strong>Número del álbum</strong>: <code class="font-mono">253</code> (se resuelve contra el catálogo).
+			<div class="rounded-md bg-stone-100 p-3 text-xs leading-relaxed text-stone-600">
+				<strong>Formato:</strong> aceptamos el formato Figuritas tal cual lo copias
+				(<code class="font-mono">MEX 🇲🇽: 4, 5, 6</code>) o IDs sueltos
+				(<code class="font-mono">GER-04</code>). Las cabeceras y emojis se ignoran solos.
 			</div>
 
 			{#if form?.error}
@@ -92,13 +170,23 @@
 				</div>
 			{/if}
 
-			<button
-				type="submit"
-				disabled={loading}
-				class="w-full rounded-lg bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-stone-800 disabled:opacity-50"
-			>
-				{loading ? 'Calculando…' : 'Calcular intercambio'}
-			</button>
+			<div class="flex flex-col gap-2 sm:flex-row">
+				<button
+					type="submit"
+					disabled={loading}
+					class="flex-1 rounded-lg bg-stone-900 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-stone-800 disabled:opacity-50"
+				>
+					{loading ? 'Importando…' : 'Importar y calcular mi álbum'}
+				</button>
+				{#if !data.tieneData}
+					<a
+						href="/"
+						class="grid place-items-center rounded-lg border border-stone-300 bg-white px-4 py-3 text-sm font-semibold text-stone-700 hover:bg-stone-50"
+					>
+						Empezar vacío
+					</a>
+				{/if}
+			</div>
 		</form>
 	</div>
 </div>
