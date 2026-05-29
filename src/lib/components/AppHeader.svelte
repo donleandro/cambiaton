@@ -36,10 +36,10 @@
 				</svg>
 			</span>
 			<div class="min-w-0">
-				<div class="text-sm font-black leading-tight tracking-tight text-stone-900 sm:text-base">
+				<div class="text-base font-black leading-tight tracking-tight text-stone-900">
 					Cambiatón
 				</div>
-				<div class="hidden text-[11px] leading-tight text-stone-500 sm:block">
+				<div class="text-[11px] leading-tight text-stone-500">
 					Álbum Mundial 2026
 				</div>
 			</div>
