@@ -9,7 +9,10 @@ CREATE TABLE IF NOT EXISTS `intercambios` (
 	`dados` text NOT NULL,
 	`recibidos` text NOT NULL,
 	`inicio` text,
+	`op_id` text,
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE INDEX IF NOT EXISTS `idx_intercambios_user` ON `intercambios` (`user_id`);
+--> statement-breakpoint
+CREATE UNIQUE INDEX IF NOT EXISTS `idx_intercambios_opid` ON `intercambios` (`user_id`, `op_id`) WHERE `op_id` IS NOT NULL;

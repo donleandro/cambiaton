@@ -88,6 +88,7 @@ export async function registrarIntercambio(args: {
 	contraparte?: string | null;
 	contraparteUserId?: number | null;
 	inicio?: string | null;
+	opId?: string | null;
 }): Promise<number> {
 	const [row] = await db
 		.insert(intercambios)
@@ -97,10 +98,24 @@ export async function registrarIntercambio(args: {
 			recibidos: args.recibidos,
 			contraparte: args.contraparte?.trim() || null,
 			contraparteUserId: args.contraparteUserId ?? null,
-			inicio: args.inicio ?? null
+			inicio: args.inicio ?? null,
+			opId: args.opId ?? null
 		})
 		.returning({ id: intercambios.id });
 	return row.id;
+}
+
+/**
+ * ¿Ya se aplicó una operación con este opId para este usuario? Sirve para que la
+ * cola offline no aplique dos veces el mismo cambio si la request llega repetida.
+ */
+export async function intercambioAplicado(userId: number, opId: string): Promise<boolean> {
+	const [row] = await db
+		.select({ id: intercambios.id })
+		.from(intercambios)
+		.where(and(eq(intercambios.userId, userId), eq(intercambios.opId, opId)))
+		.limit(1);
+	return !!row;
 }
 
 /**

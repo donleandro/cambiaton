@@ -111,7 +111,11 @@ export const intercambios = sqliteTable('intercambios', {
 	contraparteUserId: integer('contraparte_user_id'),
 	dados: text('dados', { mode: 'json' }).notNull().$type<string[]>(),
 	recibidos: text('recibidos', { mode: 'json' }).notNull().$type<string[]>(),
-	inicio: text('inicio')
+	inicio: text('inicio'),
+	// Idempotencia para la cola offline: id generado en el cliente. Si una misma
+	// operación llega dos veces (reconexión con señal parpadeante), se aplica una
+	// sola vez. null = operaciones viejas / sin cola.
+	opId: text('op_id')
 });
 
 export const loginAttempts = sqliteTable('login_attempts', {

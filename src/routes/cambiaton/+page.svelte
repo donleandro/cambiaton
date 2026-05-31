@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
 	import { goto, invalidateAll } from '$app/navigation';
 	import { browser } from '$app/environment';
 	import { track } from '$lib/client/track';
-	import type { ActionData, PageData } from './$types';
+	import { enqueue, flush, count as colaCount } from '$lib/client/offline-queue';
+	import type { PageData } from './$types';
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
+	let { data }: { data: PageData } = $props();
 
 	type Step = 0 | 1 | 2 | 3;
 	type Inicio = 'mis-faltantes' | 'mis-repetidas';
@@ -25,10 +25,7 @@
 	function guardarBorrador() {
 		if (!browser) return;
 		try {
-			localStorage.setItem(
-				DRAFT_KEY,
-				JSON.stringify({ inicio, step, recibo, doy, contraparte })
-			);
+			localStorage.setItem(DRAFT_KEY, JSON.stringify({ inicio, step, recibo, doy, contraparte }));
 		} catch {
 			/* storage lleno o bloqueado: no es crítico */
 		}
@@ -114,6 +111,105 @@
 				/* noop */
 			}
 		}
+	}
+
+	// --- Online / cola offline ---------------------------------------------------
+	let online = $state(true);
+	let pendientes = $state(0);
+	let sincronizando = $state(false);
+	let aplicando = $state(false);
+	let resultadoMsg = $state('');
+	let resultadoTono = $state<'ok' | 'cola' | 'error'>('ok');
+
+	$effect(() => {
+		if (!browser) return;
+		online = navigator.onLine;
+		pendientes = colaCount();
+		const onOnline = () => {
+			online = true;
+			sincronizar();
+		};
+		const onOffline = () => {
+			online = false;
+		};
+		window.addEventListener('online', onOnline);
+		window.addEventListener('offline', onOffline);
+		sincronizar();
+		return () => {
+			window.removeEventListener('online', onOnline);
+			window.removeEventListener('offline', onOffline);
+		};
+	});
+
+	async function sincronizar() {
+		if (!browser || !navigator.onLine || colaCount() === 0 || sincronizando) return;
+		sincronizando = true;
+		const r = await flush();
+		pendientes = colaCount();
+		sincronizando = false;
+		if (r.done > 0) {
+			resultadoTono = 'ok';
+			resultadoMsg = `Se sincronizaron ${r.done} cambio(s) que estaban pendientes.`;
+			await invalidateAll();
+		}
+	}
+
+	function nuevoOpId(): string {
+		if (browser && 'randomUUID' in crypto) return crypto.randomUUID();
+		return `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+	}
+
+	async function aplicar() {
+		if (!balanceado || unoAuno === 0 || aplicando) return;
+		aplicando = true;
+		resultadoMsg = '';
+		const opId = nuevoOpId();
+		const action = '/cambiaton?/confirmar';
+		const fields = {
+			dados: idsDoy.join(','),
+			recibidos: idsRecibo.join(','),
+			contraparte,
+			inicio: inicio ?? '',
+			opId
+		};
+		const label = `${unoAuno} ↔ ${unoAuno}${contraparte ? ' con ' + contraparte : ''}`;
+
+		const aLaCola = (motivo: string) => {
+			enqueue({ opId, action, fields, ts: Date.now(), label });
+			pendientes = colaCount();
+			track('cambiaton_encolado', { dados: nDoy, recibidos: nRecibo });
+			resultadoTono = 'cola';
+			resultadoMsg = `${motivo}: guardé el cambio (${label}). Se aplica solo cuando vuelva la señal.`;
+			limpiarTodo();
+		};
+
+		if (!navigator.onLine) {
+			aLaCola('Sin internet');
+			aplicando = false;
+			return;
+		}
+
+		try {
+			const res = await fetch(action, {
+				method: 'POST',
+				headers: { 'content-type': 'application/x-www-form-urlencoded' },
+				body: new URLSearchParams(fields).toString()
+			});
+			if (res.ok) {
+				track('cambiaton_confirmar', { dados: nDoy, recibidos: nRecibo, unoAuno, inicio });
+				resultadoTono = 'ok';
+				resultadoMsg = `✓ Intercambio aplicado y registrado (${label}).`;
+				limpiarTodo();
+				await invalidateAll();
+			} else {
+				resultadoTono = 'error';
+				resultadoMsg = 'No se pudo aplicar (error del servidor). Probá de nuevo.';
+			}
+		} catch {
+			// La red se cortó justo al enviar. Idempotente: encolar no duplica.
+			aLaCola('Se cortó la conexión');
+		}
+		aplicando = false;
 	}
 
 	// El paso 1 muestra la lista elegida en el paso 0; el paso 2 la otra.
@@ -267,7 +363,11 @@
 								{step > n ? '✓' : n}
 							</button>
 							<div class="min-w-0 flex-1">
-								<div class="truncate text-xs font-medium {step === n ? 'text-stone-900' : 'text-stone-500'}">
+								<div
+									class="truncate text-xs font-medium {step === n
+										? 'text-stone-900'
+										: 'text-stone-500'}"
+								>
 									{labels[n]}
 								</div>
 							</div>
@@ -338,10 +438,31 @@
 	</header>
 
 	<div class="mx-auto max-w-4xl px-4 py-5">
-		{#if form?.ok}
-			<div class="mb-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
-				✓ Intercambio aplicado y registrado: {form.dados} dados, {form.recibidos} recibidos.
-				<button class="ml-2 underline" onclick={() => goto('/')}>Ver catálogo</button>
+		{#if resultadoMsg}
+			<div
+				class="mb-4 rounded-md border p-3 text-sm {resultadoTono === 'ok'
+					? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+					: resultadoTono === 'cola'
+						? 'border-amber-200 bg-amber-50 text-amber-800'
+						: 'border-rose-200 bg-rose-50 text-rose-700'}"
+			>
+				{resultadoMsg}
+				{#if resultadoTono === 'ok'}
+					<button class="ml-2 underline" onclick={() => goto('/')}>Ver catálogo</button>
+				{/if}
+			</div>
+		{/if}
+
+		{#if pendientes > 0}
+			<div class="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+				⏳ {pendientes} cambio(s) en cola esperando internet.
+				{#if online}
+					<button class="ml-1 underline" onclick={sincronizar} disabled={sincronizando}>
+						{sincronizando ? 'Sincronizando…' : 'Sincronizar ahora'}
+					</button>
+				{:else}
+					Estás sin conexión.
+				{/if}
 			</div>
 		{/if}
 
@@ -366,8 +487,8 @@
 					>
 						<div class="mb-1 text-base font-bold text-emerald-700">Empezar por mis faltantes</div>
 						<div class="text-sm text-stone-600">
-							Vos leés tus faltantes en voz alta. La otra persona te dice cuáles tiene repetidas
-							y las marcás. Después seguimos con tus repetidas.
+							Vos leés tus faltantes en voz alta. La otra persona te dice cuáles tiene repetidas y
+							las marcás. Después seguimos con tus repetidas.
 						</div>
 						<div class="mt-3 text-xs font-semibold text-emerald-700">
 							{data.misFaltantes.length} faltantes → revisás primero
@@ -393,20 +514,28 @@
 				{#if idsDoy.length > 0 || idsRecibo.length > 0}
 					<div class="mt-4 rounded-md border border-stone-200 bg-white p-3 text-sm text-stone-600">
 						Tenés un cambio en curso ({nDoy} doy · {nRecibo} recibo).
-						<button class="ml-1 font-semibold text-stone-900 underline" onclick={() => (step = 3)}>Retomar</button>
-						<button class="ml-2 text-stone-500 underline" onclick={limpiarTodo}>Empezar de cero</button>
+						<button class="ml-1 font-semibold text-stone-900 underline" onclick={() => (step = 3)}
+							>Retomar</button
+						>
+						<button class="ml-2 text-stone-500 underline" onclick={limpiarTodo}
+							>Empezar de cero</button
+						>
 					</div>
 				{/if}
 			</section>
 		{:else if mostrarFaltantes}
 			<section>
-				<h2 class="mb-1 text-lg font-semibold">Paso {step} · Mis faltantes — ¿cuáles tiene él/ella?</h2>
+				<h2 class="mb-1 text-lg font-semibold">
+					Paso {step} · Mis faltantes — ¿cuáles tiene él/ella?
+				</h2>
 				<p class="mb-3 text-sm text-stone-600">
 					Marcá las que la otra persona tenga repetidas. Seleccionados:
 					<strong>{nRecibo}</strong>.
 				</p>
 
-				<div class="mb-3 text-xs text-stone-500">Mostrando {filtFaltantes.length} de {data.misFaltantes.length} faltantes</div>
+				<div class="mb-3 text-xs text-stone-500">
+					Mostrando {filtFaltantes.length} de {data.misFaltantes.length} faltantes
+				</div>
 
 				<ul class="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">
 					{#each filtFaltantes as s (s.id)}
@@ -424,7 +553,10 @@
 									class="h-4 w-4 shrink-0 accent-emerald-600"
 								/>
 								{#if s.grupo}
-									<span class="rounded bg-stone-900 px-1 py-0.5 font-mono text-[10px] font-bold text-white">{s.grupo}</span>
+									<span
+										class="rounded bg-stone-900 px-1 py-0.5 font-mono text-[10px] font-bold text-white"
+										>{s.grupo}</span
+									>
 								{/if}
 								<span class="min-w-0 flex-1">
 									<span class="block font-mono text-xs font-bold">{s.id}</span>
@@ -433,7 +565,9 @@
 							</label>
 						</li>
 					{:else}
-						<li class="col-span-full rounded-md border border-dashed border-stone-300 p-6 text-center text-sm text-stone-500">
+						<li
+							class="col-span-full rounded-md border border-dashed border-stone-300 p-6 text-center text-sm text-stone-500"
+						>
 							{soloSelFalt ? 'No marcaste ninguna todavía.' : 'Sin faltantes con esos filtros.'}
 						</li>
 					{/each}
@@ -441,13 +575,17 @@
 			</section>
 		{:else if mostrarRepetidas}
 			<section>
-				<h2 class="mb-1 text-lg font-semibold">Paso {step} · Mis repetidas — ¿cuáles necesita él/ella?</h2>
+				<h2 class="mb-1 text-lg font-semibold">
+					Paso {step} · Mis repetidas — ¿cuáles necesita él/ella?
+				</h2>
 				<p class="mb-3 text-sm text-stone-600">
 					Marcá las que la otra persona necesite. Seleccionados:
 					<strong>{nDoy}</strong>.
 				</p>
 
-				<div class="mb-3 text-xs text-stone-500">Mostrando {filtRepetidas.length} de {data.misRepetidas.length} repetidas</div>
+				<div class="mb-3 text-xs text-stone-500">
+					Mostrando {filtRepetidas.length} de {data.misRepetidas.length} repetidas
+				</div>
 
 				<ul class="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">
 					{#each filtRepetidas as s (s.id)}
@@ -465,19 +603,26 @@
 									class="h-4 w-4 shrink-0 accent-amber-600"
 								/>
 								{#if s.grupo}
-									<span class="rounded bg-stone-900 px-1 py-0.5 font-mono text-[10px] font-bold text-white">{s.grupo}</span>
+									<span
+										class="rounded bg-stone-900 px-1 py-0.5 font-mono text-[10px] font-bold text-white"
+										>{s.grupo}</span
+									>
 								{/if}
 								<span class="min-w-0 flex-1">
 									<span class="block font-mono text-xs font-bold">{s.id}</span>
 									<span class="block truncate text-xs text-stone-600">{s.equipo}</span>
 								</span>
 								{#if s.repetidas > 1}
-									<span class="rounded bg-amber-100 px-1.5 text-[10px] font-bold text-amber-800">×{s.repetidas}</span>
+									<span class="rounded bg-amber-100 px-1.5 text-[10px] font-bold text-amber-800"
+										>×{s.repetidas}</span
+									>
 								{/if}
 							</label>
 						</li>
 					{:else}
-						<li class="col-span-full rounded-md border border-dashed border-stone-300 p-6 text-center text-sm text-stone-500">
+						<li
+							class="col-span-full rounded-md border border-dashed border-stone-300 p-6 text-center text-sm text-stone-500"
+						>
 							{soloSelRep ? 'No marcaste ninguna todavía.' : 'Sin repetidas con esos filtros.'}
 						</li>
 					{/each}
@@ -494,13 +639,25 @@
 				<div class="grid gap-4 md:grid-cols-2">
 					<div>
 						<h3 class="mb-2 flex items-center justify-between border-b border-stone-200 pb-1">
-							<span class="font-semibold">Yo recibo <span class="text-stone-500">({nRecibo})</span></span>
-							<button type="button" onclick={() => (step = stepDeFaltantes)} class="text-xs text-stone-500 hover:text-stone-900">Editar paso {stepDeFaltantes}</button>
+							<span class="font-semibold"
+								>Yo recibo <span class="text-stone-500">({nRecibo})</span></span
+							>
+							<button
+								type="button"
+								onclick={() => (step = stepDeFaltantes)}
+								class="text-xs text-stone-500 hover:text-stone-900"
+								>Editar paso {stepDeFaltantes}</button
+							>
 						</h3>
 						<ul class="space-y-1">
 							{#each stickersRecibo as s (s.id)}
-								<li class="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-2 text-sm">
-									{#if s.grupo}<span class="rounded bg-stone-900 px-1 py-0.5 font-mono text-[10px] font-bold text-white">{s.grupo}</span>{/if}
+								<li
+									class="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-2 text-sm"
+								>
+									{#if s.grupo}<span
+											class="rounded bg-stone-900 px-1 py-0.5 font-mono text-[10px] font-bold text-white"
+											>{s.grupo}</span
+										>{/if}
 									<span class="font-mono text-sm font-bold">{s.id}</span>
 									<span class="flex-1 truncate text-stone-700">{s.equipo}</span>
 									<button
@@ -511,7 +668,11 @@
 									>
 								</li>
 							{:else}
-								<li class="rounded-md border border-dashed border-stone-300 p-3 text-center text-sm text-stone-500">Nada en este lado.</li>
+								<li
+									class="rounded-md border border-dashed border-stone-300 p-3 text-center text-sm text-stone-500"
+								>
+									Nada en este lado.
+								</li>
 							{/each}
 						</ul>
 					</div>
@@ -519,12 +680,22 @@
 					<div>
 						<h3 class="mb-2 flex items-center justify-between border-b border-stone-200 pb-1">
 							<span class="font-semibold">Yo doy <span class="text-stone-500">({nDoy})</span></span>
-							<button type="button" onclick={() => (step = stepDeRepetidas)} class="text-xs text-stone-500 hover:text-stone-900">Editar paso {stepDeRepetidas}</button>
+							<button
+								type="button"
+								onclick={() => (step = stepDeRepetidas)}
+								class="text-xs text-stone-500 hover:text-stone-900"
+								>Editar paso {stepDeRepetidas}</button
+							>
 						</h3>
 						<ul class="space-y-1">
 							{#each stickersDoy as s (s.id)}
-								<li class="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-sm">
-									{#if s.grupo}<span class="rounded bg-stone-900 px-1 py-0.5 font-mono text-[10px] font-bold text-white">{s.grupo}</span>{/if}
+								<li
+									class="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-sm"
+								>
+									{#if s.grupo}<span
+											class="rounded bg-stone-900 px-1 py-0.5 font-mono text-[10px] font-bold text-white"
+											>{s.grupo}</span
+										>{/if}
 									<span class="font-mono text-sm font-bold">{s.id}</span>
 									<span class="flex-1 truncate text-stone-700">{s.equipo}</span>
 									<button
@@ -535,29 +706,38 @@
 									>
 								</li>
 							{:else}
-								<li class="rounded-md border border-dashed border-stone-300 p-3 text-center text-sm text-stone-500">Nada en este lado.</li>
+								<li
+									class="rounded-md border border-dashed border-stone-300 p-3 text-center text-sm text-stone-500"
+								>
+									Nada en este lado.
+								</li>
 							{/each}
 						</ul>
 					</div>
 				</div>
 
 				<!-- Resumen 1:1 (tema 1) -->
-				<div class="mt-5 rounded-md border bg-white p-3 text-sm {balanceado ? 'border-emerald-200' : 'border-amber-200'}">
+				<div
+					class="mt-5 rounded-md border bg-white p-3 text-sm {balanceado
+						? 'border-emerald-200'
+						: 'border-amber-200'}"
+				>
 					<div class="flex items-center gap-2 text-base">
 						<span class="font-semibold">Cambio 1 a 1:</span>
-						<span class="rounded bg-stone-900 px-2 py-0.5 font-bold text-white">{unoAuno} figuritas</span>
+						<span class="rounded bg-stone-900 px-2 py-0.5 font-bold text-white"
+							>{unoAuno} figuritas</span
+						>
 					</div>
 					{#if balanceado && unoAuno > 0}
 						<p class="mt-1 text-emerald-700">Balanceado: {nDoy} doy ↔ {nRecibo} recibo.</p>
 					{:else if sobranDoy > 0}
 						<p class="mt-1 text-amber-700">
-							Te <strong>sobran {sobranDoy}</strong> para dar. Agregá {sobranDoy} a "recibo" para
-							emparejar, o quedan para el próximo cambio.
+							Te <strong>sobran {sobranDoy}</strong> para dar. Agregá {sobranDoy} a "recibo" para emparejar,
+							o quedan para el próximo cambio.
 						</p>
 					{:else if faltanDoy > 0}
 						<p class="mt-1 text-amber-700">
-							Te <strong>faltan {faltanDoy}</strong> para dar. Agregá {faltanDoy} a "doy" para
-							emparejar.
+							Te <strong>faltan {faltanDoy}</strong> para dar. Agregá {faltanDoy} a "doy" para emparejar.
 						</p>
 					{/if}
 				</div>
@@ -567,7 +747,10 @@
 					<div class="mt-4 rounded-md border border-stone-200 bg-stone-50 p-3">
 						<div class="mb-2 flex flex-wrap items-center justify-between gap-2">
 							<h3 class="text-sm font-semibold">
-								Agregar alternativas a <span class={altLado === 'recibo' ? 'text-emerald-700' : 'text-amber-700'}>{altLado === 'recibo' ? 'recibo' : 'doy'}</span>
+								Agregar alternativas a <span
+									class={altLado === 'recibo' ? 'text-emerald-700' : 'text-amber-700'}
+									>{altLado === 'recibo' ? 'recibo' : 'doy'}</span
+								>
 								<span class="text-stone-500">(las que ya elegiste salen del listado)</span>
 							</h3>
 							<input
@@ -577,17 +760,23 @@
 								class="min-w-[140px] rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm focus:border-stone-500 focus:outline-none"
 							/>
 						</div>
-						<ul class="grid max-h-56 grid-cols-2 gap-1.5 overflow-y-auto sm:grid-cols-3 lg:grid-cols-4">
+						<ul
+							class="grid max-h-56 grid-cols-2 gap-1.5 overflow-y-auto sm:grid-cols-3 lg:grid-cols-4"
+						>
 							{#each altFiltrados.slice(0, 60) as s (s.id)}
 								<li>
 									<button
 										type="button"
 										onclick={() => toggleAlt(s.id)}
-										class="flex w-full items-center gap-2 rounded-md border p-2 text-left text-sm transition-colors {altLado === 'recibo'
+										class="flex w-full items-center gap-2 rounded-md border p-2 text-left text-sm transition-colors {altLado ===
+										'recibo'
 											? 'border-stone-200 bg-white hover:border-emerald-300 hover:bg-emerald-50'
 											: 'border-stone-200 bg-white hover:border-amber-300 hover:bg-amber-50'}"
 									>
-										{#if s.grupo}<span class="rounded bg-stone-900 px-1 py-0.5 font-mono text-[10px] font-bold text-white">{s.grupo}</span>{/if}
+										{#if s.grupo}<span
+												class="rounded bg-stone-900 px-1 py-0.5 font-mono text-[10px] font-bold text-white"
+												>{s.grupo}</span
+											>{/if}
 										<span class="min-w-0 flex-1">
 											<span class="block font-mono text-xs font-bold">{s.id}</span>
 											<span class="block truncate text-xs text-stone-600">{s.equipo}</span>
@@ -596,73 +785,63 @@
 									</button>
 								</li>
 							{:else}
-								<li class="col-span-full p-3 text-center text-sm text-stone-500">No quedan opciones para agregar.</li>
+								<li class="col-span-full p-3 text-center text-sm text-stone-500">
+									No quedan opciones para agregar.
+								</li>
 							{/each}
 						</ul>
 						{#if altFiltrados.length > 60}
-							<p class="mt-2 text-xs text-stone-500">Mostrando 60 de {altFiltrados.length}. Afiná con la búsqueda.</p>
+							<p class="mt-2 text-xs text-stone-500">
+								Mostrando 60 de {altFiltrados.length}. Afiná con la búsqueda.
+							</p>
 						{/if}
 					</div>
 				{/if}
 
-				<form
-					method="POST"
-					action="?/confirmar"
-					use:enhance={() => async ({ result, update }) => {
-						await update();
-						if (result.type === 'success') {
-							track('cambiaton_confirmar', {
-								dados: nDoy,
-								recibidos: nRecibo,
-								unoAuno,
-								inicio
-							});
-							limpiarTodo();
-						}
-					}}
-					class="mt-4 space-y-3"
-				>
+				<div class="mt-4 space-y-3">
 					<label class="block">
-						<span class="mb-1 block text-sm font-medium text-stone-700">¿Con quién cambiaste? <span class="text-stone-400">(opcional)</span></span>
+						<span class="mb-1 block text-sm font-medium text-stone-700"
+							>¿Con quién cambiaste? <span class="text-stone-400">(opcional)</span></span
+						>
 						<input
 							type="text"
-							name="contraparte"
 							bind:value={contraparte}
 							placeholder="Ej: Juan, primo de la feria…"
 							maxlength="80"
 							class="w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm focus:border-stone-500 focus:outline-none"
 						/>
 					</label>
-					<input type="hidden" name="dados" value={idsDoy.join(',')} />
-					<input type="hidden" name="recibidos" value={idsRecibo.join(',')} />
-					<input type="hidden" name="inicio" value={inicio ?? ''} />
 					<button
-						type="submit"
-						disabled={!balanceado || unoAuno === 0}
+						type="button"
+						onclick={aplicar}
+						disabled={!balanceado || unoAuno === 0 || aplicando}
 						class="w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-40"
 					>
-						{#if balanceado && unoAuno > 0}
+						{#if aplicando}
+							Aplicando…
+						{:else if !online}
+							Guardar para aplicar al volver la señal ({unoAuno} ↔ {unoAuno})
+						{:else if balanceado && unoAuno > 0}
 							Aplicar y registrar intercambio ({unoAuno} ↔ {unoAuno})
 						{:else}
 							Emparejá para poder aplicar
 						{/if}
 					</button>
-					{#if unoAuno === 0}
+					{#if !online && balanceado && unoAuno > 0}
+						<p class="text-center text-xs text-amber-700">
+							Sin internet: el cambio se guarda y se aplica solo cuando vuelva la señal.
+						</p>
+					{:else if unoAuno === 0}
 						<p class="text-center text-xs text-stone-500">Elegí al menos una de cada lado.</p>
 					{:else if !balanceado}
 						<p class="text-center text-xs text-amber-700">
 							No está parejo: {sobranDoy > 0
 								? `sacá ${sobranDoy} de "doy" o agregá ${sobranDoy} a "recibo"`
-								: `sacá ${faltanDoy} de "recibo" o agregá ${faltanDoy} a "doy"`}. La transferencia siempre es 1 a 1.
+								: `sacá ${faltanDoy} de "recibo" o agregá ${faltanDoy} a "doy"`}. La transferencia
+							siempre es 1 a 1.
 						</p>
 					{/if}
-				</form>
-
-				{#if form?.error}
-					<div class="mt-3 rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">
-						{form.error}
-					</div>
-				{/if}
+				</div>
 			</section>
 		{/if}
 	</div>
@@ -673,9 +852,15 @@
 				<!-- Resumen siempre visible (tema 5) -->
 				<div class="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs">
 					<div class="flex items-center gap-2">
-						<span class="rounded bg-amber-100 px-2 py-0.5 font-semibold text-amber-800">Doy {nDoy}</span>
-						<span class="rounded bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-800">Recibo {nRecibo}</span>
-						<span class="rounded bg-stone-900 px-2 py-0.5 font-semibold text-white">1:1 = {unoAuno}</span>
+						<span class="rounded bg-amber-100 px-2 py-0.5 font-semibold text-amber-800"
+							>Doy {nDoy}</span
+						>
+						<span class="rounded bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-800"
+							>Recibo {nRecibo}</span
+						>
+						<span class="rounded bg-stone-900 px-2 py-0.5 font-semibold text-white"
+							>1:1 = {unoAuno}</span
+						>
 					</div>
 					<button
 						type="button"

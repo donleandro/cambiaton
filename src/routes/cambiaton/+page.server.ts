@@ -2,7 +2,8 @@ import {
 	getColeccionCompleta,
 	setTengo,
 	deltaRepetidas,
-	registrarIntercambio
+	registrarIntercambio,
+	intercambioAplicado
 } from '$lib/server/collection';
 import { grupoDe } from '$lib/server/groups';
 import { error, fail } from '@sveltejs/kit';
@@ -48,6 +49,7 @@ export const actions: Actions = {
 			.filter(Boolean);
 		const contraparte = String(data.get('contraparte') ?? '').trim() || null;
 		const inicio = String(data.get('inicio') ?? '').trim() || null;
+		const opId = String(data.get('opId') ?? '').trim() || null;
 
 		if (dados.length === 0 && recibidos.length === 0) {
 			return fail(400, { error: 'No seleccionaste nada para intercambiar.' });
@@ -59,6 +61,11 @@ export const actions: Actions = {
 			});
 		}
 
+		// Idempotencia (cola offline): si esta operación ya se aplicó, no repetir.
+		if (opId && (await intercambioAplicado(locals.user.id, opId))) {
+			return { ok: true, dados: dados.length, recibidos: recibidos.length, duplicado: true };
+		}
+
 		// Registrar el LOG primero, así el cambio queda asentado aunque algo falle
 		// después. Sin esto el intercambio se aplicaba sin dejar rastro.
 		await registrarIntercambio({
@@ -66,7 +73,8 @@ export const actions: Actions = {
 			dados,
 			recibidos,
 			contraparte,
-			inicio
+			inicio,
+			opId
 		});
 
 		// DADOS: -1 repetida en mi colección
