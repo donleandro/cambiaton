@@ -1,6 +1,6 @@
 import { db } from './db';
-import { stickers, colecciones } from './db/schema';
-import { eq, sql } from 'drizzle-orm';
+import { stickers, colecciones, intercambios, type Intercambio } from './db/schema';
+import { eq, sql, desc, and } from 'drizzle-orm';
 
 export type StickerConEstado = {
 	id: string;
@@ -74,6 +74,84 @@ export async function upsertColeccion(
  */
 export async function setTengo(userId: number, stickerId: string, tengo: boolean): Promise<void> {
 	await upsertColeccion(userId, stickerId, { tengo });
+}
+
+/**
+ * Registra un intercambio aplicado (el LOG del Cambiatón). Guarda el snapshot
+ * de IDs dados/recibidos y con quién, para que el cambio no se olvide.
+ * Devuelve el id de la fila creada.
+ */
+export async function registrarIntercambio(args: {
+	userId: number;
+	dados: string[];
+	recibidos: string[];
+	contraparte?: string | null;
+	contraparteUserId?: number | null;
+	inicio?: string | null;
+}): Promise<number> {
+	const [row] = await db
+		.insert(intercambios)
+		.values({
+			userId: args.userId,
+			dados: args.dados,
+			recibidos: args.recibidos,
+			contraparte: args.contraparte?.trim() || null,
+			contraparteUserId: args.contraparteUserId ?? null,
+			inicio: args.inicio ?? null
+		})
+		.returning({ id: intercambios.id });
+	return row.id;
+}
+
+/**
+ * Historial de intercambios de un usuario, más recientes primero.
+ */
+export async function getIntercambios(userId: number): Promise<Intercambio[]> {
+	return db
+		.select()
+		.from(intercambios)
+		.where(eq(intercambios.userId, userId))
+		.orderBy(desc(intercambios.id));
+}
+
+/**
+ * Trae un intercambio del usuario (o null). Verifica pertenencia.
+ */
+export async function getIntercambio(userId: number, id: number): Promise<Intercambio | null> {
+	const [row] = await db
+		.select()
+		.from(intercambios)
+		.where(and(eq(intercambios.id, id), eq(intercambios.userId, userId)))
+		.limit(1);
+	return row ?? null;
+}
+
+/**
+ * Actualiza el snapshot de un intercambio (tras un ajuste). NO toca la colección;
+ * eso lo hace el caller calculando el diff.
+ */
+export async function actualizarIntercambio(
+	userId: number,
+	id: number,
+	patch: { dados: string[]; recibidos: string[]; contraparte?: string | null }
+): Promise<void> {
+	await db
+		.update(intercambios)
+		.set({
+			dados: patch.dados,
+			recibidos: patch.recibidos,
+			...(patch.contraparte !== undefined ? { contraparte: patch.contraparte?.trim() || null } : {})
+		})
+		.where(and(eq(intercambios.id, id), eq(intercambios.userId, userId)));
+}
+
+/**
+ * Borra un intercambio del log (tras anularlo). El caller ya revirtió la colección.
+ */
+export async function eliminarIntercambio(userId: number, id: number): Promise<void> {
+	await db
+		.delete(intercambios)
+		.where(and(eq(intercambios.id, id), eq(intercambios.userId, userId)));
 }
 
 /**

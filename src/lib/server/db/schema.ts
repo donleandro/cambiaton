@@ -35,7 +35,9 @@ export const users = sqliteTable('users', {
 	email: text('email').unique(),
 	passwordHash: text('password_hash'),
 	isAdmin: integer('is_admin', { mode: 'boolean' }).notNull().default(false),
-	createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
+	createdAt: text('created_at')
+		.notNull()
+		.$defaultFn(() => new Date().toISOString()),
 	claimedAt: text('claimed_at')
 });
 
@@ -68,7 +70,9 @@ export const colecciones = sqliteTable(
  */
 export const imports = sqliteTable('imports', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
-	fecha: text('fecha').notNull().$defaultFn(() => new Date().toISOString()),
+	fecha: text('fecha')
+		.notNull()
+		.$defaultFn(() => new Date().toISOString()),
 	submitterId: integer('submitter_id')
 		.notNull()
 		.references(() => users.id, { onDelete: 'cascade' }),
@@ -78,7 +82,36 @@ export const imports = sqliteTable('imports', {
 	status: text('status', { enum: ['pendiente', 'aplicado', 'archivado'] })
 		.notNull()
 		.default('pendiente'),
-	origen: text('origen', { enum: ['publico', 'manual'] }).notNull().default('manual')
+	origen: text('origen', { enum: ['publico', 'manual'] })
+		.notNull()
+		.default('manual')
+});
+
+/**
+ * Registro de cada intercambio aplicado desde el Cambiatón. Es el LOG: sin
+ * esto, al aplicar el cambio se modificaba la colección sin dejar traza y "el
+ * cambio podía olvidarse".
+ *   - userId: dueño de la colección que confirmó el cambio
+ *   - contraparte: con quién cambiaste (texto libre, opcional — ej "Juan")
+ *   - dados/recibidos: snapshot de los IDs en cada lado al momento de confirmar
+ *   - inicio: por qué lista arrancó el flujo ('mis-faltantes' | 'mis-repetidas')
+ */
+export const intercambios = sqliteTable('intercambios', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	userId: integer('user_id')
+		.notNull()
+		.references(() => users.id, { onDelete: 'cascade' }),
+	fecha: text('fecha')
+		.notNull()
+		.$defaultFn(() => new Date().toISOString()),
+	contraparte: text('contraparte'),
+	// Si el cambio fue contra un usuario del sistema (ej: aplicar una lista
+	// compartida), guardamos su id para poder revertir su lado al ajustar.
+	// null = cambiatón manual (contraparte solo texto libre).
+	contraparteUserId: integer('contraparte_user_id'),
+	dados: text('dados', { mode: 'json' }).notNull().$type<string[]>(),
+	recibidos: text('recibidos', { mode: 'json' }).notNull().$type<string[]>(),
+	inicio: text('inicio')
 });
 
 export const loginAttempts = sqliteTable('login_attempts', {
@@ -93,6 +126,7 @@ export type Extra = typeof extras.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type Coleccion = typeof colecciones.$inferSelect;
 export type Import = typeof imports.$inferSelect;
+export type Intercambio = typeof intercambios.$inferSelect;
 
 /**
  * Vista agregada de un sticker con el estado del usuario. Lo que usan las páginas.

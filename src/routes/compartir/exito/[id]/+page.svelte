@@ -23,7 +23,9 @@
 						{new Date(data.importacion.fecha).toLocaleString('es-MX')}
 					</p>
 				</div>
-				<span class="rounded-full px-2 py-0.5 text-xs font-semibold {estado.tone}">{estado.label}</span>
+				<span class="rounded-full px-2 py-0.5 text-xs font-semibold {estado.tone}"
+					>{estado.label}</span
+				>
 			</div>
 		</div>
 	</header>
@@ -38,8 +40,7 @@
 						</p>
 						<p class="mt-1 text-xs text-emerald-800">
 							Quedaste con sesión iniciada en este dispositivo. Agregá un email y una contraseña y
-							vas a poder entrar desde cualquier lado con <code>cambiaton.leandromoreno.com</code> →
-							Entrar.
+							vas a poder entrar desde cualquier lado con <code>cambiaton.leandromoreno.com</code> → Entrar.
 						</p>
 					</div>
 					<a
@@ -68,69 +69,101 @@
 
 		{#if data.match.ellosTeDan.length === 0 && data.match.vosLesDas.length === 0}
 			<div class="rounded-lg border border-dashed border-stone-300 p-8 text-center text-stone-500">
-				No hubo coincidencias entre tu lista y la colección actual. Intentá más tarde — su inventario
-				cambia con el tiempo.
+				No hubo coincidencias entre tu lista y la colección actual. Intentá más tarde — su
+				inventario cambia con el tiempo.
 			</div>
 		{:else}
-			<div class="mb-3 rounded-md border bg-white p-3 text-sm {data.match.ellosTeDan.length === data.match.vosLesDas.length
-				? 'border-emerald-200'
-				: 'border-amber-200'}">
-				{#if data.match.ellosTeDan.length === data.match.vosLesDas.length}
-					<span class="font-semibold text-emerald-700">Intercambio balanceado:</span>
-					{data.match.ellosTeDan.length} ↔ {data.match.vosLesDas.length} stickers
-				{:else}
-					<span class="font-semibold text-amber-700">Desbalanceado:</span>
-					te dan {data.match.ellosTeDan.length}, vos das {data.match.vosLesDas.length}
-				{/if}
+			{@const unoAuno = data.match.balanceado}
+			{@const nDan = data.match.ellosTeDan.length}
+			{@const nDas = data.match.vosLesDas.length}
+			<div class="mb-3 rounded-md border border-emerald-200 bg-white p-3 text-sm">
+				<div class="flex items-center gap-2 text-base">
+					<span class="font-semibold">Cambio 1 a 1:</span>
+					<span class="rounded bg-stone-900 px-2 py-0.5 font-bold text-white"
+						>{unoAuno} ↔ {unoAuno}</span
+					>
+				</div>
+				<p class="mt-1 text-stone-600">
+					Los cambios son siempre 1 a 1. Hay <strong>{nDan}</strong> que te sirven de él y
+					<strong>{nDas}</strong> que vos le servís, así que entran <strong>{unoAuno}</strong> de
+					cada lado.{#if nDas > unoAuno}
+						Se eligen {unoAuno} de tus {nDas} (el resto queda para otra).{/if}{#if nDan > unoAuno}
+						Se eligen {unoAuno} de sus {nDan}.{/if}
+				</p>
 			</div>
 
 			<div class="grid gap-4 md:grid-cols-2">
 				<section>
 					<h2 class="mb-2 border-b border-stone-200 pb-1 text-base font-semibold text-emerald-700">
 						Ellos te darían
-						<span class="text-sm font-normal text-stone-500">({data.match.ellosTeDan.length})</span>
+						<span class="text-sm font-normal text-stone-500"
+							>({data.match.ellosTeDan
+								.length}{#if data.match.ellosTeDan.length > data.match.balanceado}
+								· entran {data.match.balanceado}{/if})</span
+						>
 					</h2>
 					<ul class="space-y-1">
 						{#each data.match.ellosTeDan as it (it.id)}
-							<li class="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-2 text-sm">
+							<li
+								class="flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-2 text-sm"
+							>
 								{#if it.grupo}
-									<span class="rounded bg-stone-900 px-1 py-0.5 font-mono text-[10px] font-bold text-white">{it.grupo}</span>
+									<span
+										class="rounded bg-stone-900 px-1 py-0.5 font-mono text-[10px] font-bold text-white"
+										>{it.grupo}</span
+									>
 								{/if}
 								<span class="font-mono text-sm font-bold">{it.id}</span>
 								<span class="flex-1 truncate text-stone-700">{it.equipo}</span>
 								<span class="text-xs text-stone-500">#{it.numero}</span>
 							</li>
 						{:else}
-							<li class="rounded-md border border-dashed border-stone-300 p-3 text-center text-sm text-stone-500">Ninguna de sus repetidas te falta.</li>
+							<li
+								class="rounded-md border border-dashed border-stone-300 p-3 text-center text-sm text-stone-500"
+							>
+								Ninguna de sus repetidas te falta.
+							</li>
 						{/each}
 					</ul>
 				</section>
 
 				<section>
 					<h2 class="mb-2 border-b border-stone-200 pb-1 text-base font-semibold text-amber-700">
-						Vos les darías
-						<span class="text-sm font-normal text-stone-500">({data.match.vosLesDas.length})</span>
+						Vos podés darle
+						<span class="text-sm font-normal text-stone-500"
+							>({data.match.vosLesDas.length} candidatas{#if data.match.vosLesDas.length > data.match.balanceado}
+								· entran {data.match.balanceado}{/if})</span
+						>
 					</h2>
 					<ul class="space-y-1">
 						{#each data.match.vosLesDas as it (it.id)}
-							<li class="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-sm">
+							<li
+								class="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-sm"
+							>
 								{#if it.grupo}
-									<span class="rounded bg-stone-900 px-1 py-0.5 font-mono text-[10px] font-bold text-white">{it.grupo}</span>
+									<span
+										class="rounded bg-stone-900 px-1 py-0.5 font-mono text-[10px] font-bold text-white"
+										>{it.grupo}</span
+									>
 								{/if}
 								<span class="font-mono text-sm font-bold">{it.id}</span>
 								<span class="flex-1 truncate text-stone-700">{it.equipo}</span>
 								<span class="text-xs text-stone-500">#{it.numero}</span>
 							</li>
 						{:else}
-							<li class="rounded-md border border-dashed border-stone-300 p-3 text-center text-sm text-stone-500">Ninguna de tus repetidas le falta a él.</li>
+							<li
+								class="rounded-md border border-dashed border-stone-300 p-3 text-center text-sm text-stone-500"
+							>
+								Ninguna de tus repetidas le falta a él.
+							</li>
 						{/each}
 					</ul>
 				</section>
 			</div>
 
 			<div class="mt-6 rounded-lg border border-stone-200 bg-white p-3 text-xs text-stone-600">
-				<strong>Guardá este link</strong> para volver a ver el estado del intercambio.
-				Refrescá para ver la propuesta recalculada con el inventario actual.
+				<strong>Guardá este link</strong> para volver a ver el estado del intercambio. Refrescá para ver
+				la propuesta recalculada con el inventario actual.
 			</div>
 		{/if}
 	</div>

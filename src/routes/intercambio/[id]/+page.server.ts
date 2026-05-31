@@ -5,7 +5,8 @@ import { calcularMatch, type InventarioAjeno } from '$lib/server/matcher';
 import {
 	getColeccionCompleta,
 	setTengo,
-	deltaRepetidas
+	deltaRepetidas,
+	registrarIntercambio
 } from '$lib/server/collection';
 import { eq } from 'drizzle-orm';
 import QRCode from 'qrcode';
@@ -29,7 +30,9 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 
 	const inventarioAjeno: InventarioAjeno = {
 		faltantes: suColeccion.filter((s) => !s.tengo).map((s) => s.id),
-		repetidas: suColeccion.filter((s) => s.repetidas > 0).map((s) => ({ id: s.id, count: s.repetidas }))
+		repetidas: suColeccion
+			.filter((s) => s.repetidas > 0)
+			.map((s) => ({ id: s.id, count: s.repetidas }))
 	};
 
 	const match = calcularMatch(miColeccion, inventarioAjeno);
@@ -85,12 +88,38 @@ export const actions: Actions = {
 		if (!imp || imp.toUserId !== locals.user.id) return fail(403);
 
 		const data = await request.formData();
-		const dados = String(data.get('dados') ?? '').split(',').filter(Boolean);
-		const recibidos = String(data.get('recibidos') ?? '').split(',').filter(Boolean);
+		const dados = String(data.get('dados') ?? '')
+			.split(',')
+			.filter(Boolean);
+		const recibidos = String(data.get('recibidos') ?? '')
+			.split(',')
+			.filter(Boolean);
+
+		// La transferencia es siempre 1 a 1: misma cantidad de cada lado.
+		if (dados.length > 0 && recibidos.length > 0 && dados.length !== recibidos.length) {
+			return fail(400, {
+				error: `El cambio tiene que ser 1 a 1: ${dados.length} para dar vs ${recibidos.length} para recibir.`
+			});
+		}
 
 		if (dados.length === 0 && recibidos.length === 0) {
 			return fail(400, { error: 'Seleccioná al menos un sticker.' });
 		}
+
+		// Registrar el LOG (bilateral): guardamos la contraparte como usuario para
+		// poder revertir su lado si después se ajusta/anula.
+		const [submitter] = await db
+			.select({ nombre: users.nombre })
+			.from(users)
+			.where(eq(users.id, imp.submitterId));
+		await registrarIntercambio({
+			userId: locals.user.id,
+			dados,
+			recibidos,
+			contraparte: submitter?.nombre ?? null,
+			contraparteUserId: imp.submitterId,
+			inicio: 'lista-compartida'
+		});
 
 		// DADOS (mis repetidas → del submitter): -1 a mí, +tengo o +1 repetida al submitter
 		for (const id of dados) {
@@ -112,10 +141,7 @@ export const actions: Actions = {
 		if (!locals.user) return fail(401);
 		const importId = Number(params.id);
 		if (!Number.isInteger(importId)) return fail(400);
-		await db
-			.update(imports)
-			.set({ status: 'archivado' })
-			.where(eq(imports.id, importId));
+		await db.update(imports).set({ status: 'archivado' }).where(eq(imports.id, importId));
 		throw redirect(303, '/intercambios');
 	},
 
@@ -123,10 +149,7 @@ export const actions: Actions = {
 		if (!locals.user) return fail(401);
 		const importId = Number(params.id);
 		if (!Number.isInteger(importId)) return fail(400);
-		await db
-			.update(imports)
-			.set({ status: 'pendiente' })
-			.where(eq(imports.id, importId));
+		await db.update(imports).set({ status: 'pendiente' }).where(eq(imports.id, importId));
 		return { ok: true };
 	}
 };

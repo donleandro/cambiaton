@@ -1,4 +1,9 @@
-import { getColeccionCompleta, setTengo, deltaRepetidas } from '$lib/server/collection';
+import {
+	getColeccionCompleta,
+	setTengo,
+	deltaRepetidas,
+	registrarIntercambio
+} from '$lib/server/collection';
 import { grupoDe } from '$lib/server/groups';
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -41,10 +46,28 @@ export const actions: Actions = {
 		const recibidos = String(data.get('recibidos') ?? '')
 			.split(',')
 			.filter(Boolean);
+		const contraparte = String(data.get('contraparte') ?? '').trim() || null;
+		const inicio = String(data.get('inicio') ?? '').trim() || null;
 
 		if (dados.length === 0 && recibidos.length === 0) {
 			return fail(400, { error: 'No seleccionaste nada para intercambiar.' });
 		}
+		// La transferencia es siempre 1 a 1: misma cantidad de cada lado.
+		if (dados.length !== recibidos.length) {
+			return fail(400, {
+				error: `El cambio tiene que ser 1 a 1: marcaste ${dados.length} para dar y ${recibidos.length} para recibir.`
+			});
+		}
+
+		// Registrar el LOG primero, así el cambio queda asentado aunque algo falle
+		// después. Sin esto el intercambio se aplicaba sin dejar rastro.
+		await registrarIntercambio({
+			userId: locals.user.id,
+			dados,
+			recibidos,
+			contraparte,
+			inicio
+		});
 
 		// DADOS: -1 repetida en mi colección
 		for (const id of dados) {

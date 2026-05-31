@@ -24,6 +24,8 @@ vite.config.ts.timestamp-*
 # SQLite + dumps con data real
 *.db
 drizzle/data.sql
+# Backups de prod (contienen emails + password hashes reales)
+backups/
 
 # Claude Code local settings
 .claude/settings.local.json

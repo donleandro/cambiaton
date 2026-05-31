@@ -225,9 +225,10 @@ export function calcularMatch(
 	doy.sort((a, b) => a.numero - b.numero);
 	recibo.sort((a, b) => a.numero - b.numero);
 
-	const totalDoy = doy.reduce((a, b) => a + b.cantidad, 0);
-	const totalRecibo = recibo.reduce((a, b) => a + b.cantidad, 0);
-	const balanceado = Math.min(totalDoy, totalRecibo);
+	// 1:1 por figurita distinta: la UI intercambia por sticker (un check por id),
+	// no por multiplicidad de repetidas. La propuesta es SIEMPRE el menor de los
+	// dos lados (hacia abajo): nunca 16 vs 15, siempre 15 vs 15.
+	const balanceado = Math.min(doy.length, recibo.length);
 
 	return { doy, recibo, balanceado };
 }
