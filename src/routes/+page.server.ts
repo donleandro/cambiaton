@@ -1,4 +1,10 @@
-import { getColeccionCompleta, aplicarAtomico, legs } from '$lib/server/collection';
+import {
+	getColeccionCompleta,
+	aplicarAtomico,
+	legs,
+	estaBloqueado,
+	setCandadoEquipo
+} from '$lib/server/collection';
 import { grupoDe, posicionAlbum } from '$lib/server/groups';
 import type { Actions, PageServerLoad } from './$types';
 import { error, fail } from '@sveltejs/kit';
@@ -39,6 +45,12 @@ export const actions: Actions = {
 		const tengo = data.get('tengo') === 'true';
 		const opId = String(data.get('opId') ?? '').trim() || null;
 		if (!id) return fail(400);
+		// Candado: si está protegido, no se puede desmarcar (sí volver a marcar).
+		if (!tengo && (await estaBloqueado(locals.user.id, id))) {
+			return fail(423, {
+				error: 'Ese sticker está con candado 🔒. Abrí el candado del equipo para desmarcarlo.'
+			});
+		}
 		const res = await aplicarAtomico({
 			opId,
 			userId: locals.user.id,
@@ -69,5 +81,16 @@ export const actions: Actions = {
 			legs: [legs.deltaRepetidas(locals.user.id, id, delta)]
 		});
 		return { ok: true, duplicado: res.duplicado };
+	},
+
+	// Cerrar / abrir el candado de un equipo entero (protege el "lo tengo").
+	candadoEquipo: async ({ request, locals }) => {
+		if (!locals.user) return fail(401);
+		const data = await request.formData();
+		const equipo = String(data.get('equipo') ?? '').trim();
+		const bloquear = data.get('bloquear') === 'true';
+		if (!equipo) return fail(400);
+		const afectados = await setCandadoEquipo(locals.user.id, equipo, bloquear);
+		return { ok: true, equipo, bloqueado: bloquear, afectados };
 	}
 };

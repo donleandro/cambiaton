@@ -199,9 +199,11 @@
 		<div class="space-y-6">
 			{#each equipoOrder as eq (eq)}
 				{@const lista = grouped[eq]}
+				{@const owned = lista.filter((s) => s.tengo)}
+				{@const equipoLock = owned.length > 0 && owned.every((s) => s.bloqueado)}
 				<section>
-					<h2 class="mb-2 flex items-baseline justify-between border-b border-stone-200 pb-1">
-						<span class="flex items-baseline gap-2">
+					<h2 class="mb-2 flex items-center justify-between gap-2 border-b border-stone-200 pb-1">
+						<span class="flex min-w-0 items-center gap-2">
 							{#if lista[0].grupo}
 								<span
 									class="rounded-md bg-stone-900 px-1.5 py-0.5 font-mono text-xs font-bold tracking-wider text-white"
@@ -209,10 +211,41 @@
 									{lista[0].grupo}
 								</span>
 							{/if}
-							<span class="text-base font-semibold">{eq}</span>
+							<span class="truncate text-base font-semibold">{eq}</span>
+							<!-- Candado del equipo: protege el "lo tengo". 🔓 abierto = desactivado. -->
+							<form
+								method="POST"
+								action="?/candadoEquipo"
+								use:enhance={() => async ({ update }) => await update()}
+							>
+								<input type="hidden" name="equipo" value={eq} />
+								<input type="hidden" name="bloquear" value={(!equipoLock).toString()} />
+								<button
+									type="submit"
+									disabled={owned.length === 0}
+									class="grid h-6 w-6 place-items-center rounded transition-colors disabled:opacity-30 {equipoLock
+										? 'text-amber-600 hover:bg-amber-50'
+										: 'text-stone-300 hover:bg-stone-100 hover:text-stone-500'}"
+									title={owned.length === 0
+										? 'Marcá stickers para poder cerrarlos'
+										: equipoLock
+											? 'Equipo protegido — clic para abrir el candado'
+											: 'Cerrar candado del equipo (protege lo que ya tenés)'}
+									aria-label={equipoLock ? 'Abrir candado del equipo' : 'Cerrar candado del equipo'}
+								>
+									<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+										<rect x="3" y="11" width="18" height="11" rx="2" />
+										{#if equipoLock}
+											<path d="M7 11V7a5 5 0 0 1 10 0v4" />
+										{:else}
+											<path d="M7 11V7a5 5 0 0 1 9.9-1" />
+										{/if}
+									</svg>
+								</button>
+							</form>
 						</span>
-						<span class="text-xs text-stone-500">
-							{lista.filter((s) => s.tengo).length}/{lista.length} ·
+						<span class="shrink-0 text-xs text-stone-500">
+							{owned.length}/{lista.length} ·
 							{lista[0].confederacion}
 						</span>
 					</h2>
@@ -243,10 +276,17 @@
 										<input type="hidden" name="tengo" value={(!s.tengo).toString()} />
 										<button
 											type="submit"
-											class="grid h-8 w-8 place-items-center rounded-md border text-base font-bold transition-colors {s.tengo
+											disabled={s.bloqueado}
+											class="grid h-8 w-8 place-items-center rounded-md border text-base font-bold transition-colors disabled:cursor-not-allowed {s.bloqueado
+												? 'ring-2 ring-amber-400'
+												: ''} {s.tengo
 												? 'border-emerald-500 bg-emerald-500 text-white hover:bg-emerald-600'
 												: 'border-stone-300 bg-white text-stone-400 hover:border-stone-500 hover:text-stone-700'}"
-											title={s.tengo ? 'Tengo (clic para quitar)' : 'Marcar como obtenido'}
+											title={s.bloqueado
+												? '🔒 Protegido — abrí el candado del equipo para desmarcar'
+												: s.tengo
+													? 'Tengo (clic para quitar)'
+													: 'Marcar como obtenido'}
 											aria-label="Toggle tengo"
 										>
 											✓

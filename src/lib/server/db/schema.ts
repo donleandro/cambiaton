@@ -55,7 +55,11 @@ export const colecciones = sqliteTable(
 			.notNull()
 			.references(() => stickers.id, { onDelete: 'cascade' }),
 		tengo: integer('tengo', { mode: 'boolean' }).notNull().default(false),
-		repetidas: integer('repetidas').notNull().default(0)
+		repetidas: integer('repetidas').notNull().default(0),
+		// Candado del "lo tengo": si está true, no se puede desmarcar (proteger
+		// equipos ya completos). NO afecta repetidas — esas son moneda de cambio y
+		// se mueven siempre.
+		bloqueado: integer('bloqueado', { mode: 'boolean' }).notNull().default(false)
 	},
 	(t) => [primaryKey({ columns: [t.userId, t.stickerId] })]
 );

@@ -123,6 +123,7 @@ export type StickerConEstado = {
 	descripcion: string;
 	tengo: boolean;
 	repetidas: number;
+	bloqueado: boolean;
 };
 
 /**
@@ -140,7 +141,8 @@ export async function getColeccionCompleta(userId: number): Promise<StickerConEs
 			tipo: stickers.tipo,
 			descripcion: stickers.descripcion,
 			tengo: sql<number>`coalesce(${colecciones.tengo}, 0)`,
-			repetidas: sql<number>`coalesce(${colecciones.repetidas}, 0)`
+			repetidas: sql<number>`coalesce(${colecciones.repetidas}, 0)`,
+			bloqueado: sql<number>`coalesce(${colecciones.bloqueado}, 0)`
 		})
 		.from(stickers)
 		.leftJoin(
@@ -149,7 +151,12 @@ export async function getColeccionCompleta(userId: number): Promise<StickerConEs
 		)
 		.orderBy(stickers.equipo, stickers.id);
 
-	return rows.map((r) => ({ ...r, tengo: Boolean(r.tengo), repetidas: Number(r.repetidas) }));
+	return rows.map((r) => ({
+		...r,
+		tengo: Boolean(r.tengo),
+		repetidas: Number(r.repetidas),
+		bloqueado: Boolean(r.bloqueado)
+	}));
 }
 
 /**
@@ -186,6 +193,52 @@ export async function upsertColeccion(
  */
 export async function setTengo(userId: number, stickerId: string, tengo: boolean): Promise<void> {
 	await upsertColeccion(userId, stickerId, { tengo });
+}
+
+/** ¿El "lo tengo" de este sticker está con candado? (repetidas NO se bloquean). */
+export async function estaBloqueado(userId: number, stickerId: string): Promise<boolean> {
+	const [row] = await db
+		.select({ bloqueado: colecciones.bloqueado })
+		.from(colecciones)
+		.where(sql`${colecciones.userId} = ${userId} AND ${colecciones.stickerId} = ${stickerId}`)
+		.limit(1);
+	return Boolean(row?.bloqueado);
+}
+
+/**
+ * Pone/saca el candado a TODO un equipo (solo a los stickers que el usuario
+ * tiene). Devuelve cuántos quedaron afectados. Cerrar = proteger el "lo tengo".
+ */
+export async function setCandadoEquipo(
+	userId: number,
+	equipo: string,
+	bloquear: boolean
+): Promise<number> {
+	const ids = (
+		await db.select({ id: stickers.id }).from(stickers).where(eq(stickers.equipo, equipo))
+	).map((r) => r.id);
+	if (ids.length === 0) return 0;
+	await db
+		.update(colecciones)
+		.set({ bloqueado: bloquear })
+		.where(
+			and(
+				eq(colecciones.userId, userId),
+				inArray(colecciones.stickerId, ids),
+				eq(colecciones.tengo, true)
+			)
+		);
+	const [{ n }] = await db
+		.select({ n: sql<number>`count(*)` })
+		.from(colecciones)
+		.where(
+			and(
+				eq(colecciones.userId, userId),
+				inArray(colecciones.stickerId, ids),
+				eq(colecciones.tengo, true)
+			)
+		);
+	return Number(n);
 }
 
 /**
