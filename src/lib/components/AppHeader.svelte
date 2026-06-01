@@ -124,6 +124,17 @@
 				{/if}
 			</a>
 			<a
+				href="/historial"
+				aria-current={path.startsWith('/historial') ? 'page' : undefined}
+				class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors {path.startsWith(
+					'/historial'
+				)
+					? 'bg-stone-900 text-white'
+					: 'text-stone-600 hover:bg-stone-100'}"
+			>
+				Historial
+			</a>
+			<a
 				href="/reportes"
 				aria-current={path.startsWith('/reportes') ? 'page' : undefined}
 				class="rounded-md px-2.5 py-1 text-xs font-semibold transition-colors {path.startsWith(

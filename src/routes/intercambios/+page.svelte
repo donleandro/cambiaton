@@ -91,9 +91,14 @@
 		<div class="mx-auto max-w-4xl px-4 py-3">
 			<div class="flex items-center justify-between">
 				<h1 class="text-lg font-bold tracking-tight">Intercambios</h1>
-				<a href="/cambiaton" class="text-sm text-emerald-700 hover:text-emerald-900"
-					>+ Nuevo cambiatón</a
-				>
+				<div class="flex items-center gap-3">
+					<a href="/historial" class="text-sm font-medium text-stone-600 hover:text-stone-900"
+						>Historial →</a
+					>
+					<a href="/cambiaton" class="text-sm text-emerald-700 hover:text-emerald-900"
+						>+ Nuevo cambiatón</a
+					>
+				</div>
 			</div>
 			<div class="mt-3 flex gap-1 rounded-lg bg-stone-200 p-1 text-sm">
 				<button

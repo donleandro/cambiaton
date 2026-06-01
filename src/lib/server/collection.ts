@@ -1,6 +1,6 @@
 import { db } from './db';
 import { stickers, colecciones, intercambios, opLog, type Intercambio } from './db/schema';
-import { eq, sql, desc, and } from 'drizzle-orm';
+import { eq, sql, desc, and, inArray } from 'drizzle-orm';
 
 /**
  * Contexto de auditoría: de dónde vino la request. Se propaga desde cada action
@@ -228,6 +228,43 @@ export async function intercambioAplicado(userId: number, opId: string): Promise
 		.where(and(eq(intercambios.userId, userId), eq(intercambios.opId, opId)))
 		.limit(1);
 	return !!row;
+}
+
+/**
+ * Movimientos de la bitácora (op_log) de un usuario, más recientes primero.
+ * Por defecto trae los manuales/ajustes (los trades ya viven con más detalle en
+ * `intercambios`); se puede acotar por `kinds`.
+ */
+export async function getMovimientos(
+	userId: number,
+	kinds?: string[],
+	limit = 500
+): Promise<
+	{
+		opId: string;
+		kind: string;
+		payload: string | null;
+		ip: string | null;
+		userAgent: string | null;
+		createdAt: string;
+	}[]
+> {
+	const where = kinds?.length
+		? and(eq(opLog.userId, userId), inArray(opLog.kind, kinds))
+		: eq(opLog.userId, userId);
+	return db
+		.select({
+			opId: opLog.opId,
+			kind: opLog.kind,
+			payload: opLog.payload,
+			ip: opLog.ip,
+			userAgent: opLog.userAgent,
+			createdAt: opLog.createdAt
+		})
+		.from(opLog)
+		.where(where)
+		.orderBy(desc(opLog.createdAt))
+		.limit(limit);
 }
 
 /**

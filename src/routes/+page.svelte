@@ -11,7 +11,7 @@
 	const initialParams = page.url.searchParams;
 	let filter = $state<Filter>((initialParams.get('filter') as Filter) ?? 'todos');
 	let sort = $state<Sort>('mundial');
-	let search = $state('');
+	let search = $state(initialParams.get('q') ?? '');
 	let confederacion = $state<string>(initialParams.get('confederacion') ?? '');
 	let equipo = $state<string>(initialParams.get('equipo') ?? '');
 	let grupo = $state<string>(initialParams.get('grupo') ?? '');
