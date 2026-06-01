@@ -91,13 +91,22 @@
 		<div class="mx-auto max-w-4xl px-4 py-3">
 			<div class="flex items-center justify-between">
 				<h1 class="text-lg font-bold tracking-tight">Intercambios</h1>
-				<div class="flex items-center gap-3">
-					<a href="/historial" class="text-sm font-medium text-stone-600 hover:text-stone-900"
-						>Historial →</a
+				<div class="flex items-center gap-2">
+					<a
+						href="/historial"
+						class="inline-flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-sm font-semibold text-stone-700 shadow-sm hover:bg-stone-50"
 					>
-					<a href="/cambiaton" class="text-sm text-emerald-700 hover:text-emerald-900"
-						>+ Nuevo cambiatón</a
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+							<path d="M12 8v4l3 2M3 12a9 9 0 1018 0 9 9 0 00-18 0z" />
+						</svg>
+						Historial
+					</a>
+					<a
+						href="/cambiaton"
+						class="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700"
 					>
+						+ Cambiatón
+					</a>
 				</div>
 			</div>
 			<div class="mt-3 flex gap-1 rounded-lg bg-stone-200 p-1 text-sm">

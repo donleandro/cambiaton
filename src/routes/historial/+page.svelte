@@ -3,6 +3,38 @@
 
 	let { data }: { data: PageData } = $props();
 
+	type Tipo = 'todos' | 'cambiaton' | 'lista' | 'manual' | 'ajuste';
+	let tipoFiltro = $state<Tipo>('todos');
+
+	// Conteo por forma para mostrar en los chips.
+	const conteos = $derived.by(() => {
+		const c: Record<string, number> = { todos: 0, cambiaton: 0, lista: 0, manual: 0, ajuste: 0 };
+		for (const g of data.dias)
+			for (const ev of g.eventos) {
+				c.todos++;
+				c[ev.forma] = (c[ev.forma] ?? 0) + 1;
+			}
+		return c;
+	});
+
+	// Días con sus eventos filtrados por tipo (ocultando días vacíos).
+	const dias = $derived(
+		data.dias
+			.map((g) => ({
+				dia: g.dia,
+				eventos: tipoFiltro === 'todos' ? g.eventos : g.eventos.filter((e) => e.forma === tipoFiltro)
+			}))
+			.filter((g) => g.eventos.length > 0)
+	);
+
+	const chips: { key: Tipo; label: string }[] = [
+		{ key: 'todos', label: 'Todos' },
+		{ key: 'cambiaton', label: 'Cambiatón' },
+		{ key: 'lista', label: 'Lista' },
+		{ key: 'manual', label: 'Manual' },
+		{ key: 'ajuste', label: 'Ajuste' }
+	];
+
 	// Metadatos visuales por "forma" del movimiento.
 	const estilo: Record<string, { label: string; icon: string; clase: string }> = {
 		cambiaton: {
@@ -56,14 +88,35 @@
 		<span class="shrink-0 text-xs font-semibold text-stone-400">{data.total} mov.</span>
 	</div>
 
-	{#if data.dias.length === 0}
+	{#if data.total > 0}
+		<div class="mb-4 flex flex-wrap gap-1.5">
+			{#each chips as c (c.key)}
+				<button
+					onclick={() => (tipoFiltro = c.key)}
+					class="rounded-full border px-3 py-1 text-xs font-semibold transition-colors {tipoFiltro ===
+					c.key
+						? 'border-stone-900 bg-stone-900 text-white'
+						: 'border-stone-300 bg-white text-stone-600 hover:bg-stone-50'}"
+				>
+					{c.label}
+					<span class="opacity-60">{conteos[c.key] ?? 0}</span>
+				</button>
+			{/each}
+		</div>
+	{/if}
+
+	{#if data.total === 0}
 		<div class="rounded-xl border border-dashed border-stone-300 p-10 text-center text-stone-500">
 			Todavía no hay movimientos registrados.<br />
 			<span class="text-xs">Apenas hagas un cambio o marques un sticker, aparece acá.</span>
 		</div>
+	{:else if dias.length === 0}
+		<div class="rounded-xl border border-dashed border-stone-300 p-8 text-center text-stone-500">
+			No hay movimientos de tipo <strong>{tipoFiltro}</strong>.
+		</div>
 	{:else}
 		<div class="space-y-6">
-			{#each data.dias as grupo (grupo.dia)}
+			{#each dias as grupo (grupo.dia)}
 				<section>
 					<h2
 						class="sticky top-0 z-10 mb-2 bg-stone-50/95 py-1 text-xs font-bold uppercase tracking-wide text-stone-500 backdrop-blur"
