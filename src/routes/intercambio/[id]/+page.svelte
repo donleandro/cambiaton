@@ -157,8 +157,9 @@
 			<form
 				method="POST"
 				action="?/confirmar"
-				use:enhance={() =>
-					async ({ result, update }) => {
+				use:enhance={({ formData }) => {
+					formData.set('opId', crypto.randomUUID());
+					return async ({ result, update }) => {
 						await update();
 						if (result.type === 'success') {
 							track('aplicar_intercambio', {
@@ -167,7 +168,8 @@
 								recibidos: idsRecibo.length
 							});
 						}
-					}}
+					};
+				}}
 				class="space-y-6"
 			>
 				<input type="hidden" name="dados" value={idsDoy.join(',')} />

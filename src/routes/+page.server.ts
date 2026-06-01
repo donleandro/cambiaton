@@ -1,4 +1,4 @@
-import { getColeccionCompleta, setTengo, deltaRepetidas } from '$lib/server/collection';
+import { getColeccionCompleta, aplicarAtomico, legs } from '$lib/server/collection';
 import { grupoDe, posicionAlbum } from '$lib/server/groups';
 import type { Actions, PageServerLoad } from './$types';
 import { error, fail } from '@sveltejs/kit';
@@ -32,23 +32,42 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-	toggleTengo: async ({ request, locals }) => {
+	toggleTengo: async ({ request, locals, getClientAddress }) => {
 		if (!locals.user) return fail(401);
 		const data = await request.formData();
 		const id = String(data.get('id') ?? '');
 		const tengo = data.get('tengo') === 'true';
+		const opId = String(data.get('opId') ?? '').trim() || null;
 		if (!id) return fail(400);
-		await setTengo(locals.user.id, id, tengo);
-		return { ok: true };
+		const res = await aplicarAtomico({
+			opId,
+			userId: locals.user.id,
+			kind: 'toggle',
+			payload: { id, tengo },
+			ctx: { ip: getClientAddress?.() ?? null, userAgent: request.headers.get('user-agent') },
+			legs: [legs.setTengo(locals.user.id, id, tengo)]
+		});
+		return { ok: true, duplicado: res.duplicado };
 	},
 
-	changeRepetidas: async ({ request, locals }) => {
+	changeRepetidas: async ({ request, locals, getClientAddress }) => {
 		if (!locals.user) return fail(401);
 		const data = await request.formData();
 		const id = String(data.get('id') ?? '');
 		const delta = Number(data.get('delta') ?? 0);
+		const opId = String(data.get('opId') ?? '').trim() || null;
 		if (!id) return fail(400);
-		await deltaRepetidas(locals.user.id, id, delta);
-		return { ok: true };
+		if (!Number.isFinite(delta) || delta === 0) return fail(400);
+		// Idempotente: con opId, un mismo click reenviado (doble-tap, reintento de
+		// red, replay offline) se aplica UNA sola vez. Esto es lo que evita el "x4".
+		const res = await aplicarAtomico({
+			opId,
+			userId: locals.user.id,
+			kind: 'repetidas',
+			payload: { id, delta },
+			ctx: { ip: getClientAddress?.() ?? null, userAgent: request.headers.get('user-agent') },
+			legs: [legs.deltaRepetidas(locals.user.id, id, delta)]
+		});
+		return { ok: true, duplicado: res.duplicado };
 	}
 };

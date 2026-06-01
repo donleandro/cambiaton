@@ -231,9 +231,12 @@
 									<form
 										method="POST"
 										action="?/toggleTengo"
-										use:enhance={() => async ({ result, update }) => {
-											await update();
-											if (result.type === 'success') track('tengo_toggle', { sticker_id: s.id, to: !s.tengo });
+										use:enhance={({ formData }) => {
+											formData.set('opId', crypto.randomUUID());
+											return async ({ result, update }) => {
+												await update();
+												if (result.type === 'success') track('tengo_toggle', { sticker_id: s.id, to: !s.tengo });
+											};
 										}}
 									>
 										<input type="hidden" name="id" value={s.id} />
@@ -259,9 +262,12 @@
 									<form
 										method="POST"
 										action="?/changeRepetidas"
-										use:enhance={() => async ({ result, update }) => {
-											await update();
-											if (result.type === 'success') track('repetidas_delta', { sticker_id: s.id, delta: -1 });
+										use:enhance={({ formData }) => {
+											formData.set('opId', crypto.randomUUID());
+											return async ({ result, update }) => {
+												await update();
+												if (result.type === 'success') track('repetidas_delta', { sticker_id: s.id, delta: -1 });
+											};
 										}}
 									>
 										<input type="hidden" name="id" value={s.id} />
@@ -284,9 +290,12 @@
 									<form
 										method="POST"
 										action="?/changeRepetidas"
-										use:enhance={() => async ({ result, update }) => {
-											await update();
-											if (result.type === 'success') track('repetidas_delta', { sticker_id: s.id, delta: 1 });
+										use:enhance={({ formData }) => {
+											formData.set('opId', crypto.randomUUID());
+											return async ({ result, update }) => {
+												await update();
+												if (result.type === 'success') track('repetidas_delta', { sticker_id: s.id, delta: 1 });
+											};
 										}}
 									>
 										<input type="hidden" name="id" value={s.id} />

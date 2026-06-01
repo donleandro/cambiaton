@@ -1,6 +1,118 @@
 import { db } from './db';
-import { stickers, colecciones, intercambios, type Intercambio } from './db/schema';
+import { stickers, colecciones, intercambios, opLog, type Intercambio } from './db/schema';
 import { eq, sql, desc, and } from 'drizzle-orm';
+
+/**
+ * Contexto de auditoría: de dónde vino la request. Se propaga desde cada action
+ * para que la bitácora registre quién/desde-dónde hizo cada cambio.
+ */
+export type OpCtx = { ip?: string | null; userAgent?: string | null };
+
+/** ¿El error es por violación de UNIQUE/PRIMARY KEY (op_id duplicado)? */
+function esConflictoUnico(e: unknown): boolean {
+	const msg = e instanceof Error ? e.message : String(e);
+	return /UNIQUE constraint failed|PRIMARY KEY|already exists|D1_ERROR.*UNIQUE/i.test(msg);
+}
+
+/**
+ * Statement (sin await) que inserta el asiento en la bitácora. Va como PRIMER
+ * elemento del batch: si el opId ya existe, el batch entero falla y NADA se
+ * aplica → idempotencia + atomicidad en una sola transacción (estilo banco).
+ */
+function stmtOpLog(opId: string, userId: number, kind: string, payload: unknown, ctx?: OpCtx) {
+	return db.insert(opLog).values({
+		opId,
+		userId,
+		kind,
+		payload: payload == null ? null : JSON.stringify(payload),
+		ip: ctx?.ip ?? null,
+		userAgent: ctx?.userAgent ?? null
+	});
+}
+
+/** Statement: setear tengo (upsert). No lee, batchable. */
+function stmtSetTengo(userId: number, stickerId: string, tengo: boolean) {
+	return db
+		.insert(colecciones)
+		.values({ userId, stickerId, tengo, repetidas: 0 })
+		.onConflictDoUpdate({
+			target: [colecciones.userId, colecciones.stickerId],
+			set: { tengo }
+		});
+}
+
+/** Statement: bajar repetidas con piso en 0. Batchable. */
+function stmtRepetidasBaja(userId: number, stickerId: string, n: number) {
+	return db
+		.update(colecciones)
+		.set({ repetidas: sql`max(0, ${colecciones.repetidas} - ${n})` })
+		.where(and(eq(colecciones.userId, userId), eq(colecciones.stickerId, stickerId)));
+}
+
+/** Statement: subir repetidas, sólo si tengo=true (no crea fila si no lo tiene). Batchable. */
+function stmtRepetidasSuba(userId: number, stickerId: string, n: number) {
+	return db
+		.update(colecciones)
+		.set({ repetidas: sql`${colecciones.repetidas} + ${n}` })
+		.where(
+			and(
+				eq(colecciones.userId, userId),
+				eq(colecciones.stickerId, stickerId),
+				eq(colecciones.tengo, true)
+			)
+		);
+}
+
+/** Statement de cambio de repetidas según signo del delta. */
+function stmtDeltaRepetidas(userId: number, stickerId: string, delta: number) {
+	return delta >= 0
+		? stmtRepetidasSuba(userId, stickerId, delta)
+		: stmtRepetidasBaja(userId, stickerId, -delta);
+}
+
+/**
+ * Aplica un conjunto de mutaciones de colección de forma ATÓMICA e IDEMPOTENTE.
+ *
+ * - Si `opId` viene: se inserta primero el asiento en `op_log` dentro del MISMO
+ *   batch. Si ya existía (replay/doble-tap), el batch falla por UNIQUE y nada se
+ *   aplica → devuelve { duplicado: true } sin efectos secundarios.
+ * - Si `opId` es null (cliente viejo/cacheado sin la mejora): se aplica igual,
+ *   pero atómico en batch. Sin dedup (no hay regresión vs comportamiento previo).
+ *
+ * `legs` son statements construidos con los helpers stmt* de arriba.
+ */
+export async function aplicarAtomico(args: {
+	opId: string | null;
+	userId: number;
+	kind: string;
+	payload?: unknown;
+	ctx?: OpCtx;
+	legs: unknown[];
+}): Promise<{ ok: true; duplicado: boolean }> {
+	const { opId, userId, kind, payload, ctx, legs } = args;
+	if (legs.length === 0) return { ok: true, duplicado: false };
+
+	// drizzle-d1 batch exige al menos un statement; tipamos laxo porque mezclamos
+	// insert/update builders.
+	const batch = (opId ? [stmtOpLog(opId, userId, kind, payload, ctx), ...legs] : legs) as [
+		unknown,
+		...unknown[]
+	];
+	try {
+		// @ts-expect-error batch acepta tupla de queries drizzle
+		await db.batch(batch);
+		return { ok: true, duplicado: false };
+	} catch (e) {
+		if (opId && esConflictoUnico(e)) return { ok: true, duplicado: true };
+		throw e;
+	}
+}
+
+/** Builders expuestos para componer legs en las actions. */
+export const legs = {
+	setTengo: stmtSetTengo,
+	deltaRepetidas: stmtDeltaRepetidas
+};
 
 export type StickerConEstado = {
 	id: string;

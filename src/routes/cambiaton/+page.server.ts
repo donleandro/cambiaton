@@ -1,10 +1,6 @@
-import {
-	getColeccionCompleta,
-	setTengo,
-	deltaRepetidas,
-	registrarIntercambio,
-	intercambioAplicado
-} from '$lib/server/collection';
+import { getColeccionCompleta, aplicarAtomico, legs } from '$lib/server/collection';
+import { intercambios } from '$lib/server/db/schema';
+import { db } from '$lib/server/db';
 import { grupoDe } from '$lib/server/groups';
 import { error, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -38,7 +34,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-	confirmar: async ({ request, locals }) => {
+	confirmar: async ({ request, locals, getClientAddress }) => {
 		if (!locals.user) return fail(401, { error: 'No autenticado' });
 		const data = await request.formData();
 		const dados = String(data.get('dados') ?? '')
@@ -61,31 +57,41 @@ export const actions: Actions = {
 			});
 		}
 
-		// Idempotencia (cola offline): si esta operación ya se aplicó, no repetir.
-		if (opId && (await intercambioAplicado(locals.user.id, opId))) {
-			return { ok: true, dados: dados.length, recibidos: recibidos.length, duplicado: true };
-		}
+		const ctx = {
+			ip: getClientAddress?.() ?? null,
+			userAgent: request.headers.get('user-agent')
+		};
+		const uid = locals.user.id;
 
-		// Registrar el LOG primero, así el cambio queda asentado aunque algo falle
-		// después. Sin esto el intercambio se aplicaba sin dejar rastro.
-		await registrarIntercambio({
-			userId: locals.user.id,
-			dados,
-			recibidos,
-			contraparte,
-			inicio,
-			opId
+		// Todo en una sola transacción atómica e idempotente: el asiento de la
+		// bitácora (con opId UNIQUE) + el registro del intercambio + las mutaciones.
+		// Si el opId ya existía (replay de la cola offline / doble-tap) nada se
+		// re-aplica.
+		const res = await aplicarAtomico({
+			opId,
+			userId: uid,
+			kind: 'cambiaton',
+			payload: { dados, recibidos, contraparte, inicio },
+			ctx,
+			legs: [
+				db.insert(intercambios).values({
+					userId: uid,
+					dados,
+					recibidos,
+					contraparte,
+					inicio,
+					opId
+				}),
+				// DADOS: -1 repetida en mi colección
+				...dados.map((id) => legs.deltaRepetidas(uid, id, -1)),
+				// RECIBIDOS: tengo = true
+				...recibidos.map((id) => legs.setTengo(uid, id, true))
+			]
 		});
 
-		// DADOS: -1 repetida en mi colección
-		for (const id of dados) {
-			await deltaRepetidas(locals.user.id, id, -1);
+		if (res.duplicado) {
+			return { ok: true, dados: dados.length, recibidos: recibidos.length, duplicado: true };
 		}
-		// RECIBIDOS: tengo = true
-		for (const id of recibidos) {
-			await setTengo(locals.user.id, id, true);
-		}
-
 		return { ok: true, dados: dados.length, recibidos: recibidos.length };
 	}
 };

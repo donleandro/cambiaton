@@ -2,12 +2,8 @@ import { db } from '$lib/server/db';
 import { imports, users } from '$lib/server/db/schema';
 import { grupoDe } from '$lib/server/groups';
 import { calcularMatch, type InventarioAjeno } from '$lib/server/matcher';
-import {
-	getColeccionCompleta,
-	setTengo,
-	deltaRepetidas,
-	registrarIntercambio
-} from '$lib/server/collection';
+import { getColeccionCompleta, aplicarAtomico, legs } from '$lib/server/collection';
+import { intercambios } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import QRCode from 'qrcode';
 import { error, fail, redirect } from '@sveltejs/kit';
@@ -79,7 +75,7 @@ export const load: PageServerLoad = async ({ params, locals, url }) => {
 };
 
 export const actions: Actions = {
-	confirmar: async ({ request, params, locals }) => {
+	confirmar: async ({ request, params, locals, getClientAddress }) => {
 		if (!locals.user) return fail(401);
 		const importId = Number(params.id);
 		if (!Number.isInteger(importId)) return fail(400);
@@ -94,6 +90,7 @@ export const actions: Actions = {
 		const recibidos = String(data.get('recibidos') ?? '')
 			.split(',')
 			.filter(Boolean);
+		const opId = String(data.get('opId') ?? '').trim() || null;
 
 		// La transferencia es siempre 1 a 1: misma cantidad de cada lado.
 		if (dados.length > 0 && recibidos.length > 0 && dados.length !== recibidos.length) {
@@ -106,34 +103,44 @@ export const actions: Actions = {
 			return fail(400, { error: 'Seleccioná al menos un sticker.' });
 		}
 
-		// Registrar el LOG (bilateral): guardamos la contraparte como usuario para
-		// poder revertir su lado si después se ajusta/anula.
+		// Guardamos a la contraparte (sólo como dato del registro). IMPORTANTE: el
+		// cambio aplica SÓLO a MI colección. Ya NO mutamos la colección del otro:
+		// cada quien confirma su propio lado cuando lo aprueba. Esto evita que la
+		// acción de la contraparte modifique mi colección sin mi consentimiento.
 		const [submitter] = await db
 			.select({ nombre: users.nombre })
 			.from(users)
 			.where(eq(users.id, imp.submitterId));
-		await registrarIntercambio({
-			userId: locals.user.id,
-			dados,
-			recibidos,
-			contraparte: submitter?.nombre ?? null,
-			contraparteUserId: imp.submitterId,
-			inicio: 'lista-compartida'
+
+		const uid = locals.user.id;
+		const res = await aplicarAtomico({
+			opId,
+			userId: uid,
+			kind: 'aplicar-lista',
+			payload: { importId, dados, recibidos, contraparteUserId: imp.submitterId },
+			ctx: { ip: getClientAddress?.() ?? null, userAgent: request.headers.get('user-agent') },
+			legs: [
+				db.insert(intercambios).values({
+					userId: uid,
+					dados,
+					recibidos,
+					contraparte: submitter?.nombre ?? null,
+					contraparteUserId: imp.submitterId,
+					inicio: 'lista-compartida',
+					opId
+				}),
+				// DADOS: -1 repetida en MI colección
+				...dados.map((id) => legs.deltaRepetidas(uid, id, -1)),
+				// RECIBIDOS: tengo=true en MI colección
+				...recibidos.map((id) => legs.setTengo(uid, id, true)),
+				// marcar el import como aplicado, dentro de la misma transacción
+				db.update(imports).set({ status: 'aplicado' }).where(eq(imports.id, importId))
+			]
 		});
 
-		// DADOS (mis repetidas → del submitter): -1 a mí, +tengo o +1 repetida al submitter
-		for (const id of dados) {
-			await deltaRepetidas(locals.user.id, id, -1);
-			// El submitter ahora tiene este sticker
-			await setTengo(imp.submitterId, id, true);
+		if (res.duplicado) {
+			return { ok: true, dados: dados.length, recibidos: recibidos.length, duplicado: true };
 		}
-		// RECIBIDOS (sus repetidas → a mí): +tengo a mí, -1 al submitter
-		for (const id of recibidos) {
-			await setTengo(locals.user.id, id, true);
-			await deltaRepetidas(imp.submitterId, id, -1);
-		}
-
-		await db.update(imports).set({ status: 'aplicado' }).where(eq(imports.id, importId));
 		return { ok: true, dados: dados.length, recibidos: recibidos.length };
 	},
 

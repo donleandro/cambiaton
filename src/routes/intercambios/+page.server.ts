@@ -139,7 +139,6 @@ export const actions: Actions = {
 		if (!old) return fail(404, { error: 'Intercambio no encontrado.' });
 
 		const me = locals.user.id;
-		const cp = old.contraparteUserId; // null = cambiatón manual (solo mi lado)
 		const oldDados = (old.dados ?? []) as string[];
 		const oldRecibidos = (old.recibidos ?? []) as string[];
 		const setNuevoDados = new Set(nuevoDados);
@@ -152,19 +151,14 @@ export const actions: Actions = {
 		const recQuitados = oldRecibidos.filter((s) => !setNuevoRec.has(s));
 		const recAgregados = nuevoRecibidos.filter((s) => !setOldRec.has(s));
 
-		// --- Mi lado ---
+		// --- Sólo MI lado ---
+		// (Antes esto también mutaba la colección de la contraparte "en espejo". Se
+		// quitó: cada quien controla su propia colección; un ajuste mío no debe
+		// tocar la de otro sin su consentimiento.)
 		for (const sid of doyQuitados) await deltaRepetidas(me, sid, 1); // no lo di -> recupero repetida
 		for (const sid of doyAgregados) await deltaRepetidas(me, sid, -1); // lo doy -> descuento
 		for (const sid of recQuitados) await setTengo(me, sid, false); // no la recibi -> faltante
 		for (const sid of recAgregados) await setTengo(me, sid, true); // la recibi -> tengo
-
-		// --- Lado de la contraparte (espejo), solo si es un cambio bilateral ---
-		if (cp != null) {
-			for (const sid of doyQuitados) await setTengo(cp, sid, false); // ya no la recibio
-			for (const sid of doyAgregados) await setTengo(cp, sid, true); // ahora la recibe
-			for (const sid of recQuitados) await deltaRepetidas(cp, sid, 1); // recupera su repetida
-			for (const sid of recAgregados) await deltaRepetidas(cp, sid, -1); // la entrega
-		}
 
 		if (nuevoDados.length === 0 && nuevoRecibidos.length === 0) {
 			await eliminarIntercambio(locals.user.id, id);

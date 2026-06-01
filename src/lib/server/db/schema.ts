@@ -118,6 +118,33 @@ export const intercambios = sqliteTable('intercambios', {
 	opId: text('op_id')
 });
 
+/**
+ * Bitácora append-only de operaciones que mutan colección (idempotencia + auditoría).
+ * Estilo "ledger" bancario: cada request que cambia estado deja un asiento inmutable.
+ *
+ *   - opId: clave de idempotencia generada por el cliente (UUID). UNIQUE a nivel DB:
+ *     si la misma operación llega dos veces (doble-tap, reintento de red, replay de la
+ *     cola offline), el segundo INSERT falla y NO se re-aplica el efecto. Esto elimina
+ *     la carrera TOCTOU del chequeo "leer-y-después-escribir".
+ *   - kind: tipo de operación ('toggle' | 'repetidas' | 'cambiaton' | 'aplicar-lista' | 'ajuste').
+ *   - userId: quién la originó.
+ *   - payload: snapshot JSON para auditoría (qué se cambió). Nunca se edita ni borra.
+ */
+export const opLog = sqliteTable('op_log', {
+	opId: text('op_id').primaryKey(),
+	userId: integer('user_id').notNull(),
+	kind: text('kind').notNull(),
+	payload: text('payload'),
+	// Quién/desde dónde, para auditoría forense ("¿desde qué celular se hizo esto?").
+	// ip: la red. userAgent: el dispositivo+navegador (ej "iPhone; Safari").
+	// No es un device-id exacto (la web no lo expone) pero cubre el 95% de los casos.
+	ip: text('ip'),
+	userAgent: text('user_agent'),
+	createdAt: text('created_at')
+		.notNull()
+		.$defaultFn(() => new Date().toISOString())
+});
+
 export const loginAttempts = sqliteTable('login_attempts', {
 	id: integer('id').primaryKey({ autoIncrement: true }),
 	ip: text('ip').notNull(),
