@@ -7,6 +7,7 @@ import {
 	SESSION_COOKIE_NAME,
 	SESSION_MAX_AGE
 } from '$lib/server/auth';
+import { chequearLimite, registrarEvento } from '$lib/server/rate-limit';
 import { and, eq, sql } from 'drizzle-orm';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -60,7 +61,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 };
 
 export const actions: Actions = {
-	default: async ({ request, cookies, locals, url }) => {
+	default: async ({ request, cookies, locals, url, getClientAddress }) => {
 		const toToken = url.searchParams.get('to');
 		const porToken = await resolverPorToken(toToken);
 
@@ -132,6 +133,21 @@ export const actions: Actions = {
 				error: 'No se reconoció ningún sticker. Revisá el formato.'
 			});
 		}
+
+		// Anti-abuso: la creación de cuentas anónimas (+ ~990 filas c/u) es el
+		// vector caro. Límite generoso por IP — 20 en 60s — para cazar bots sin
+		// bloquear una multitud en una feria con WiFi compartido.
+		const ip = getClientAddress();
+		const rl = await chequearLimite(ip, 'compartir', 20, 60 * 1000);
+		if (!rl.permitido) {
+			return fail(429, {
+				nombre,
+				faltantesTexto,
+				repetidasTexto,
+				error: 'Demasiados envíos seguidos desde esta red. Esperá un momento y reintentá.'
+			});
+		}
+		await registrarEvento(ip, 'compartir');
 
 		// 1. Crear usuario anónimo
 		const user = await createAnonymousUser(nombre);

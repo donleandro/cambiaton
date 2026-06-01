@@ -6,6 +6,7 @@ import {
 	SESSION_COOKIE_NAME,
 	SESSION_MAX_AGE
 } from '$lib/server/auth';
+import { chequearLimite, registrarEvento, formateaEspera } from '$lib/server/rate-limit';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -14,7 +15,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-	default: async ({ request, cookies, url }) => {
+	default: async ({ request, cookies, url, getClientAddress }) => {
+		const ip = getClientAddress();
+		// Anti-abuso: máx 8 registros por IP cada 10 min (evita bots creando cuentas).
+		const rl = await chequearLimite(ip, 'registro', 8, 10 * 60 * 1000);
+		if (!rl.permitido) {
+			return fail(429, {
+				error: `Demasiados registros seguidos. Probá de nuevo en ${formateaEspera(rl.bloqueadoPorMs)}.`
+			});
+		}
+
 		const data = await request.formData();
 		const nombre = String(data.get('nombre') ?? '').trim();
 		const email = String(data.get('email') ?? '').trim();
@@ -24,6 +34,7 @@ export const actions: Actions = {
 			return fail(400, { nombre, email, error: 'Todos los campos son requeridos.' });
 		}
 
+		await registrarEvento(ip, 'registro');
 		const user = await createAnonymousUser(nombre);
 		const result = await claimUser(user.id, email, password, nombre);
 		if (!result.ok) {

@@ -156,6 +156,18 @@ export const loginAttempts = sqliteTable('login_attempts', {
 	success: integer('success', { mode: 'boolean' }).notNull()
 });
 
+/**
+ * Eventos para rate-limit genérico por IP (registro, compartir público, etc.).
+ * Separado de login_attempts para no mezclar con el lockout de login.
+ *   - kind: 'registro' | 'compartir' | ...
+ */
+export const rateEvents = sqliteTable('rate_events', {
+	id: integer('id').primaryKey({ autoIncrement: true }),
+	ip: text('ip').notNull(),
+	kind: text('kind').notNull(),
+	fecha: integer('fecha').notNull()
+});
+
 export type Sticker = typeof stickers.$inferSelect;
 export type Extra = typeof extras.$inferSelect;
 export type User = typeof users.$inferSelect;

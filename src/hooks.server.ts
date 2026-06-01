@@ -57,6 +57,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 			throw redirect(303, target);
 		}
 
-		return resolve(event);
+		const response = await resolve(event);
+		// Cabeceras de seguridad (clickjacking, MIME-sniffing, fuga de referrer,
+		// forzar HTTPS). No rompen nada del front actual.
+		response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+		response.headers.set('X-Content-Type-Options', 'nosniff');
+		response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+		response.headers.set('Strict-Transport-Security', 'max-age=15552000');
+		return response;
 	});
 };

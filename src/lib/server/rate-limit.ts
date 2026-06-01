@@ -1,5 +1,5 @@
 import { db } from './db';
-import { loginAttempts } from './db/schema';
+import { loginAttempts, rateEvents } from './db/schema';
 import { and, eq, gte, sql } from 'drizzle-orm';
 
 /**
@@ -62,6 +62,42 @@ export async function registrarIntento(ip: string, success: boolean): Promise<vo
 	// Limpieza oportunista: borrar registros > 24h para que la tabla no crezca
 	const limite = Date.now() - 24 * 60 * 60 * 1000;
 	await db.delete(loginAttempts).where(sql`${loginAttempts.fecha} < ${limite}`);
+}
+
+/**
+ * Rate-limit genérico por IP y tipo de evento (registro, compartir, etc.).
+ * Ventana deslizante simple: si hay >= `max` eventos de ese kind+IP en los
+ * últimos `ventanaMs`, se bloquea hasta que el más viejo salga de la ventana.
+ *
+ * Nota: en una feria con WiFi compartido, muchas personas comparten IP. Por eso
+ * los límites para `compartir` deben ser generosos (cazar bots, no bloquear a una
+ * multitud). Tunear los números en quien lo llama.
+ */
+export async function chequearLimite(
+	ip: string,
+	kind: string,
+	max: number,
+	ventanaMs: number
+): Promise<RateLimitCheck> {
+	const desde = Date.now() - ventanaMs;
+	const filas = await db
+		.select({ fecha: rateEvents.fecha })
+		.from(rateEvents)
+		.where(and(eq(rateEvents.ip, ip), eq(rateEvents.kind, kind), gte(rateEvents.fecha, desde)))
+		.orderBy(rateEvents.fecha);
+
+	if (filas.length < max) return { permitido: true };
+	const masViejo = filas[filas.length - max].fecha;
+	const bloqueadoPorMs = Math.max(0, masViejo + ventanaMs - Date.now());
+	if (bloqueadoPorMs === 0) return { permitido: true };
+	return { permitido: false, bloqueadoPorMs };
+}
+
+export async function registrarEvento(ip: string, kind: string): Promise<void> {
+	await db.insert(rateEvents).values({ ip, kind, fecha: Date.now() });
+	// Limpieza oportunista: borrar eventos > 24 h.
+	const limite = Date.now() - 24 * 60 * 60 * 1000;
+	await db.delete(rateEvents).where(sql`${rateEvents.fecha} < ${limite}`);
 }
 
 export function formateaEspera(ms: number): string {

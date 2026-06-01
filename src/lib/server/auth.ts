@@ -40,6 +40,62 @@ export async function sha256Hex(text: string): Promise<string> {
 		.join('');
 }
 
+// ============================================================================
+// Hash de contraseñas: PBKDF2-SHA256 con sal por usuario (resistente a cracking
+// si la base se filtra). Formato auto-descriptivo: "pbkdf2$<iters>$<saltB64>$<hashB64>".
+// Compatible hacia atrás: los hashes viejos (SHA-256 hex de 64 chars sin sal) se
+// siguen verificando, y se re-hashean a PBKDF2 en el próximo login (transparente).
+// ============================================================================
+const PBKDF2_ITERS = 100_000;
+
+function bytesToB64(u8: Uint8Array): string {
+	let bin = '';
+	for (const b of u8) bin += String.fromCharCode(b);
+	return btoa(bin);
+}
+function b64ToBytes(b64: string): Uint8Array {
+	const bin = atob(b64);
+	const u8 = new Uint8Array(bin.length);
+	for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+	return u8;
+}
+
+async function pbkdf2(password: string, salt: Uint8Array, iters: number): Promise<string> {
+	const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, [
+		'deriveBits'
+	]);
+	const bits = await crypto.subtle.deriveBits(
+		{ name: 'PBKDF2', salt, iterations: iters, hash: 'SHA-256' },
+		key,
+		256
+	);
+	return bytesToB64(new Uint8Array(bits));
+}
+
+/** Genera el hash PBKDF2 (con sal aleatoria) para guardar. */
+export async function hashPassword(password: string): Promise<string> {
+	const salt = crypto.getRandomValues(new Uint8Array(16));
+	const hash = await pbkdf2(password, salt, PBKDF2_ITERS);
+	return `pbkdf2$${PBKDF2_ITERS}$${bytesToB64(salt)}$${hash}`;
+}
+
+/** Verifica una contraseña contra el hash guardado (PBKDF2 nuevo o SHA-256 viejo). */
+export async function verifyPassword(password: string, stored: string): Promise<boolean> {
+	if (stored.startsWith('pbkdf2$')) {
+		const [, itersStr, saltB64, hashB64] = stored.split('$');
+		const got = await pbkdf2(password, b64ToBytes(saltB64), Number(itersStr));
+		return timingSafeEqual(got, hashB64);
+	}
+	// Legacy: SHA-256 hex sin sal.
+	const legacy = await sha256Hex(password);
+	return timingSafeEqual(legacy, stored);
+}
+
+/** ¿El hash guardado está en el formato viejo (y conviene re-hashear)? */
+export function esHashViejo(stored: string): boolean {
+	return !stored.startsWith('pbkdf2$');
+}
+
 /**
  * Sessión es: "<userId>.<expiry>.<hmac(userId|expiry, secret)>"
  * Permite saber qué usuario es sin pegarle a la BD, con integridad firmada.
@@ -87,8 +143,15 @@ export async function verifyPasswordLogin(
 		.where(eq(users.email, email.toLowerCase().trim()))
 		.limit(1);
 	if (!user || !user.hash) return null;
-	const inputHash = await sha256Hex(password);
-	if (!timingSafeEqual(inputHash, user.hash)) return null;
+	const ok = await verifyPassword(password, user.hash);
+	if (!ok) return null;
+	// Migración transparente: si el hash era el viejo (SHA-256 sin sal), lo
+	// re-guardamos con PBKDF2 ahora que tenemos la contraseña en mano. El usuario
+	// no nota nada.
+	if (esHashViejo(user.hash)) {
+		const nuevo = await hashPassword(password);
+		await db.update(users).set({ passwordHash: nuevo }).where(eq(users.id, user.id));
+	}
 	return user.id;
 }
 
@@ -132,12 +195,17 @@ export async function claimUser(
 		return { ok: false, error: 'Ese email ya tiene una cuenta' };
 	}
 
-	const passwordHash = await sha256Hex(password);
+	const passwordHash = await hashPassword(password);
+	// Rotar el token al reclamar: el enlace/QR anónimo viejo (que podía
+	// auto-loguear a quien lo tuviera) deja de servir una vez que la cuenta tiene
+	// dueño con contraseña.
+	const nuevoToken = randomBytes(16).toString('hex');
 	await db
 		.update(users)
 		.set({
 			email: emailNorm,
 			passwordHash,
+			token: nuevoToken,
 			claimedAt: new Date().toISOString(),
 			...(nombre ? { nombre } : {})
 		})
