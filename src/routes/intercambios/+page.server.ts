@@ -8,7 +8,9 @@ import {
 	actualizarIntercambio,
 	eliminarIntercambio,
 	setTengo,
-	deltaRepetidas
+	deltaRepetidas,
+	tradesPosteriores,
+	logOp
 } from '$lib/server/collection';
 import { grupoDe } from '$lib/server/groups';
 import { desc, eq } from 'drizzle-orm';
@@ -116,11 +118,12 @@ export const actions: Actions = {
 	 * aplica el efecto espejo en la coleccion de la contraparte (cambio bilateral).
 	 * Si queda 0 a 0, se interpreta como anular: revierte todo y borra el registro.
 	 */
-	ajustar: async ({ request, locals }) => {
+	ajustar: async ({ request, locals, getClientAddress }) => {
 		if (!locals.user) return fail(401, { error: 'No autenticado' });
 		const fd = await request.formData();
 		const id = Number(fd.get('id'));
 		if (!Number.isFinite(id)) return fail(400, { error: 'ID inválido.' });
+		const confirmado = fd.get('confirmado') === '1';
 
 		const nuevoDados = String(fd.get('dados') ?? '')
 			.split(',')
@@ -151,6 +154,44 @@ export const actions: Actions = {
 		const recQuitados = oldRecibidos.filter((s) => !setNuevoRec.has(s));
 		const recAgregados = nuevoRecibidos.filter((s) => !setOldRec.has(s));
 
+		// === Escalera al deshacer un "lo tengo" =================================
+		// Solo si el ajuste QUITA algún "recibí" (eso volvería un sticker a faltante).
+		// Mover repetidas (doy +/-) o AGREGAR recibidos no se frena nunca.
+		const quitaTengo = recQuitados.length > 0;
+		if (quitaTengo) {
+			const edadMin = (Date.now() - new Date(old.fecha).getTime()) / 60000;
+			const tradesDespues = await tradesPosteriores(me, old.fecha);
+			const VEINTICUATRO_H = 24 * 60;
+
+			// Bloqueo duro: muy viejo, o ya hubo 2+ trades reales después.
+			if (edadMin > VEINTICUATRO_H || tradesDespues >= 2) {
+				const motivo =
+					edadMin > VEINTICUATRO_H
+						? 'pasaron más de 24 h desde ese cambio'
+						: `hiciste ${tradesDespues} intercambios después de este`;
+				return fail(423, {
+					id,
+					bloqueado: true,
+					error: `No se puede deshacer desde la app: ${motivo}. Para no romper la integridad, ajustalo manualmente con la persona.`
+				});
+			}
+
+			// Aviso confirmable: pasó más de 15 min (pero todavía dentro de las reglas).
+			if (edadMin > 15 && !confirmado) {
+				return fail(409, {
+					id,
+					necesitaConfirmar: true,
+					mensaje: `Este cambio es de hace ${formatoEdad(edadMin)}. Te recomendamos no deshacerlo desde la app — mejor ajustalo físicamente con la persona. ¿Continuar igual?`
+				});
+			}
+		}
+		// =======================================================================
+
+		const ctx = {
+			ip: getClientAddress?.() ?? null,
+			userAgent: request.headers.get('user-agent')
+		};
+
 		// --- Sólo MI lado ---
 		// (Antes esto también mutaba la colección de la contraparte "en espejo". Se
 		// quitó: cada quien controla su propia colección; un ajuste mío no debe
@@ -162,6 +203,7 @@ export const actions: Actions = {
 
 		if (nuevoDados.length === 0 && nuevoRecibidos.length === 0) {
 			await eliminarIntercambio(locals.user.id, id);
+			await logOp(me, 'ajuste', { id, accion: 'anular', recQuitados, confirmado }, ctx);
 			return { ajustado: true, anulado: true, id };
 		}
 
@@ -169,6 +211,21 @@ export const actions: Actions = {
 			dados: nuevoDados,
 			recibidos: nuevoRecibidos
 		});
+		await logOp(
+			me,
+			'ajuste',
+			{ id, accion: 'ajustar', recQuitados, recAgregados, confirmado },
+			ctx
+		);
 		return { ajustado: true, anulado: false, id };
 	}
 };
+
+/** Edad legible para el aviso: "23 min", "3 h", "1 día". */
+function formatoEdad(minutos: number): string {
+	if (minutos < 60) return `${Math.round(minutos)} min`;
+	const horas = minutos / 60;
+	if (horas < 24) return `${Math.round(horas)} h`;
+	const dias = Math.round(horas / 24);
+	return `${dias} ${dias === 1 ? 'día' : 'días'}`;
+}

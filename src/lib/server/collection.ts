@@ -321,6 +321,41 @@ export async function getMovimientos(
 }
 
 /**
+ * Cuántos trades (cambiatón / lista) hizo el usuario DESPUÉS de una fecha dada.
+ * Sirve para la "escalera al deshacer": si ya hubo varios trades posteriores,
+ * deshacer uno viejo puede corromper el estado actual. Todos los `intercambios`
+ * son trades reales (los toques manuales viven en op_log, no acá).
+ */
+export async function tradesPosteriores(userId: number, fechaISO: string): Promise<number> {
+	const [{ n }] = await db
+		.select({ n: sql<number>`count(*)` })
+		.from(intercambios)
+		.where(and(eq(intercambios.userId, userId), sql`${intercambios.fecha} > ${fechaISO}`));
+	return Number(n);
+}
+
+/**
+ * Inserta un asiento suelto en la bitácora (op_id generado en el server). Para
+ * acciones que no pasan por la cola offline (ej: un ajuste/anulación), de modo
+ * que igual quede traza de quién/cuándo/desde-dónde.
+ */
+export async function logOp(
+	userId: number,
+	kind: string,
+	payload: unknown,
+	ctx?: OpCtx
+): Promise<void> {
+	await db.insert(opLog).values({
+		opId: crypto.randomUUID(),
+		userId,
+		kind,
+		payload: payload == null ? null : JSON.stringify(payload),
+		ip: ctx?.ip ?? null,
+		userAgent: ctx?.userAgent ?? null
+	});
+}
+
+/**
  * Historial de intercambios de un usuario, más recientes primero.
  */
 export async function getIntercambios(userId: number): Promise<Intercambio[]> {

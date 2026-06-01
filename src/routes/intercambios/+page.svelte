@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { tick } from 'svelte';
 	import { track } from '$lib/client/track';
 	import type { ActionData, PageData } from './$types';
 
@@ -31,6 +32,9 @@
 	let editRecibo = $state<string[]>([]);
 	let altDoyQ = $state('');
 	let altReciboQ = $state('');
+	// Cuando el server pide confirmar (deshacer algo > 15 min), marcamos este id
+	// para reenviar con confirmado=1.
+	let confirmarId = $state<number | null>(null);
 
 	function abrirEditor(c: { id: number; dados: string[]; recibidos: string[] }) {
 		editId = c.id;
@@ -300,12 +304,34 @@
 								<form
 									method="POST"
 									action="?/ajustar"
-									use:enhance={() =>
+									use:enhance={({ formElement }) =>
 										async ({ result, update }) => {
+											const data =
+												result.type === 'failure'
+													? (result.data as Record<string, unknown> | undefined)
+													: undefined;
+											// Bloqueo duro: avisar y no aplicar.
+											if (data?.bloqueado) {
+												alert(String(data.error));
+												confirmarId = null;
+												return;
+											}
+											// Aviso confirmable: si acepta, reenvía con confirmado=1.
+											if (data?.necesitaConfirmar) {
+												if (confirm(String(data.mensaje))) {
+													confirmarId = c.id;
+													await tick();
+													formElement.requestSubmit();
+												} else {
+													confirmarId = null;
+												}
+												return;
+											}
 											await update();
 											if (result.type === 'success') {
 												track('cambiaton_ajustar_guardar', { id: c.id });
 												cerrarEditor();
+												confirmarId = null;
 											}
 										}}
 									class="mt-3 flex flex-wrap gap-2"
@@ -313,6 +339,11 @@
 									<input type="hidden" name="id" value={c.id} />
 									<input type="hidden" name="dados" value={editDoy.join(',')} />
 									<input type="hidden" name="recibidos" value={editRecibo.join(',')} />
+									<input
+										type="hidden"
+										name="confirmado"
+										value={confirmarId === c.id ? '1' : '0'}
+									/>
 									<button
 										type="submit"
 										disabled={!editBalanceado}
