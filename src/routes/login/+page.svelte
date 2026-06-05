@@ -118,6 +118,9 @@
 				¿No tenés cuenta? <a href="/registro" class="font-semibold text-stone-900 hover:underline">Crear una</a>
 			</div>
 			<div class="mt-2 text-center text-xs text-stone-500">
+				¿Olvidaste tu contraseña? Pedile al administrador un enlace de recuperación.
+			</div>
+			<div class="mt-2 text-center text-xs text-stone-500">
 				¿Te pasaron un link? <a href="/compartir" class="underline hover:text-stone-700">Compartí tu lista sin cuenta</a>
 			</div>
 		</div>

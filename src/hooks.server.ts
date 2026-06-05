@@ -2,7 +2,7 @@ import { redirect, type Handle } from '@sveltejs/kit';
 import { verifySessionCookie, getUserById, SESSION_COOKIE_NAME } from '$lib/server/auth';
 import { runWithD1 } from '$lib/server/db';
 
-const RUTAS_PUBLICAS = ['/login', '/registro', '/reclamar', '/compartir'];
+const RUTAS_PUBLICAS = ['/login', '/registro', '/reclamar', '/compartir', '/recuperar'];
 
 export const handle: Handle = async ({ event, resolve }) => {
 	// Forzar host canónico. Sólo aplica al `cambiaton.pages.dev` literal — las

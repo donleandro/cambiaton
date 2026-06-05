@@ -214,6 +214,70 @@ export async function claimUser(
 	return { ok: true };
 }
 
+// ============================================================================
+// Magic link para recuperar contraseña SIN enviar correos. El admin genera el
+// enlace (script scripts/magic-link.ts o ruta admin) y se lo pasa a la persona.
+//
+// Token = "<userId>.<expiry>.<hmac>", mismo esquema que la cookie de sesión pero
+// con un dominio de firma propio ("pwreset") y, crucialmente, ATADO al
+// password_hash ACTUAL del usuario. Eso da tres garantías sin tabla nueva:
+//   1. Infalsificable: sin SESSION_SECRET no se puede forjar la firma.
+//   2. Caduca: expiry embebido y firmado.
+//   3. Un solo uso: al cambiar la contraseña el hash cambia, así que el mismo
+//      enlace (y cualquier enlace viejo) deja de validar automáticamente.
+// ============================================================================
+const RESET_TTL_MS = 60 * 60 * 1000; // 1 hora
+
+async function resetSig(
+	userId: number,
+	expiry: number,
+	passwordHash: string | null
+): Promise<string> {
+	// El hash actual entra en el mensaje firmado → el token se autoinvalida al
+	// cambiar la contraseña. Para cuentas anónimas (sin hash) usamos ''.
+	return hmacHex(`pwreset.${userId}.${expiry}.${passwordHash ?? ''}`, getSecret());
+}
+
+/**
+ * Genera un magic link token para un usuario existente. Devuelve null si no
+ * existe. ttlMs permite acortar/alargar la validez (default 1h).
+ */
+export async function createResetToken(
+	userId: number,
+	ttlMs: number = RESET_TTL_MS
+): Promise<string | null> {
+	const user = await getUserById(userId);
+	if (!user) return null;
+	const expiry = Date.now() + ttlMs;
+	const sig = await resetSig(userId, expiry, user.passwordHash);
+	return `${userId}.${expiry}.${sig}`;
+}
+
+/** Valida un magic link token. Devuelve { userId } si es válido, null si no. */
+export async function verifyResetToken(
+	token: string | undefined
+): Promise<{ userId: number } | null> {
+	if (!token) return null;
+	const parts = token.split('.');
+	if (parts.length !== 3) return null;
+	const [userIdStr, expiryStr, sig] = parts;
+	const userId = Number(userIdStr);
+	const expiry = Number(expiryStr);
+	if (!Number.isFinite(userId) || !Number.isFinite(expiry)) return null;
+	if (expiry < Date.now()) return null;
+	const user = await getUserById(userId);
+	if (!user) return null;
+	const expected = await resetSig(userId, expiry, user.passwordHash);
+	if (!timingSafeEqual(sig, expected)) return null;
+	return { userId };
+}
+
+/** Setea una nueva contraseña (hash PBKDF2). Usado por el flujo de recuperación. */
+export async function setUserPassword(userId: number, password: string): Promise<void> {
+	const passwordHash = await hashPassword(password);
+	await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
+}
+
 export async function getUserById(userId: number) {
 	const [u] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
 	return u ?? null;
